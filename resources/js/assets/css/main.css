@@ -2,7 +2,7 @@
   --font-primary: 'Inter', sans-serif;
 
   /* ========= CORES BASE ========= */
-  --primary: #000;
+  --primary: #A4268E;
   --primary-light: #C85BB3;
   --primary-soft: #F3D4EC;
   --primary-dark: #7A1C69;
@@ -13,7 +13,7 @@
   --bg-ccc: #CCC;
   --bg-light: #EEE;
   --bg-soft: #FFF6D9;
-  --bg-ouro: #ffc3c3;
+  --bg-ouro: #FFF1C3;
   --bg-yellow: #FFC400;
   --bg-orange: #FF8C00;
   --bg-hover: #FFE8A3;

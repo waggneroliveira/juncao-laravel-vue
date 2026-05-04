@@ -23,8 +23,6 @@
         <meta name=author content=WHI>
         <link rel="shortcut icon" href=https://www.sushitan.com/build/client/images/favicon.png>
 
-        <link rel="preload" as="image" href="https://www.sushitan.com/build/client/images/newslleter.png">
-
         <!-- Pré-carregamento de estilos -->
         <link rel="preload" as="style" href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" />
         <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Montagu+Slab:opsz,wght@16..144,100..700&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Noto+Sans+Devanagari:wght@100..900&display=swap" />
