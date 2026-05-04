@@ -25,11 +25,9 @@
 
         <link rel="preload" as="image" href="https://www.sushitan.com/build/client/images/newslleter.png">
 
-        <!-- Fonts -->
         <!-- Pré-carregamento de estilos -->
         <link rel="preload" as="style" href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" />
         <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Montagu+Slab:opsz,wght@16..144,100..700&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Noto+Sans+Devanagari:wght@100..900&display=swap" />
-        <link rel="preload" as="style" href="{{ asset('build/client/css/main.css') }}" onload="this.rel='stylesheet'">
 
         <!-- Conexões antecipadas -->
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -40,30 +38,17 @@
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Montagu+Slab:opsz,wght@16..144,100..700&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Noto+Sans+Devanagari:wght@100..900&display=swap" rel="stylesheet">
 
-        <noscript>
+        {{-- <noscript>
             <link rel="stylesheet" href="{{ asset('build/client/css/main.css') }}">
-        </noscript>
+        </noscript> --}}
 
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @vite(['resources/js/assets/css/main.css', 'resources/js/app.js'])
 
         <!-- Preload (antes dos scripts) -->
         <link rel="preload" as="script" href="https://code.jquery.com/jquery-3.6.0.min.js">
-        <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/jquery.mb.ytplayer/dist/jquery.mb.YTPlayer.min.js">
 
         <!-- jQuery -->
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-        <!-- YTPlayer Plugin -->
-        <script src="https://cdn.jsdelivr.net/npm/jquery.mb.ytplayer/dist/jquery.mb.YTPlayer.min.js"></script>
-
-
-        @if(Route::currentRouteName() !== 'products' || Route::currentRouteName() !== 'finalize-order')
-            <style>
-                .scrollToProducts, 
-                .btn-go{
-                    display:none;
-                }
-            </style>
-        @endif
 
         <script type="application/ld+json">
         {

@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     vue(),
     laravel({
-      input: ['resources/js/app.js'],
+      input: ['resources/css/app.css', 'resources/js/app.js'],
       refresh: true,
     }),
     viteStaticCopy({
@@ -17,8 +17,7 @@ export default defineConfig({
         { src: 'resources/assets/admin/fonts', dest: 'admin' },
         { src: 'resources/assets/admin/images', dest: 'admin' },
         { src: 'resources/assets/admin/js', dest: 'admin' },
-        { src: 'resources/assets/client/images', dest: 'client' },
-        { src: 'resources/assets/client/css', dest: 'client' },
+        { src: 'resources/js/assets/css/main.css', dest: 'client' },
       ],
     }),
   ],
