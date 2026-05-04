@@ -23,30 +23,7 @@ class HomePageController extends Controller
 {
     public function index()
     {
-        $slides = Slide::active()->sorting()->get();
-        $topics = Topic::active()->sorting()->get();
-        $partners = Partner::active()->sorting()->get();
-        $plans = Plan::select(
-        'plans.plan_category',
-        'plans.title',
-        'plans.subtitle',
-        'plans.bandwidth_limit',
-        'plans.bandwidth_unit',
-        'plans.description',
-        'plans.price',
-        'plans.active',
-        'plans.sorting'
-        )->active()->sorting()->get();
-        $planCategories = PlanCategory::whereHas('plans')->active()->sorting()->get();
-        $about = About::active()->first();
-        $planSection = PlanSection::first();
-        $products = Product::active()->sorting()->get();
-        $productSection = ProductSection::first();
-        $depoiments = Depoiment::active()->sorting()->get();
-        $depoimentSession = DepoimentSession::first();
-        $contact = Contact::first();
-
-        return view('client.blades.index', compact('contact', 'depoimentSession', 'depoiments', 'slides', 'topics', 'about', 'partners','planCategories', 'plans', 'planSection','products', 'productSection'));
+        return view('client.blades.app');
     }
 
     public function getPlansByCategory($id)

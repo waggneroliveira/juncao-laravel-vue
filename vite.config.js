@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     vue(),
     laravel({
-      input: ['resources/css/app.css', 'resources/js/app.js'],
+      input: ['resources/js/app.js'],
       refresh: true,
     }),
     viteStaticCopy({
@@ -32,7 +32,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     hmr: {
-      host: '192.168.100.1',
+      host: 'localhost',
     },
   },
   build: {
