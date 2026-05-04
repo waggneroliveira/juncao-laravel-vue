@@ -1,0 +1,102 @@
+:root {
+  --font-primary: 'Inter', sans-serif;
+
+  /* ========= CORES BASE ========= */
+  --primary: #000;
+  --primary-light: #C85BB3;
+  --primary-soft: #F3D4EC;
+  --primary-dark: #7A1C69;
+
+  /* ========= BACKGROUNDS ========= */
+  --bg-primary-hover: rgba(245, 116, 116, 0.705);
+  --bg-main: #F5F5F5;
+  --bg-ccc: #CCC;
+  --bg-light: #EEE;
+  --bg-soft: #FFF6D9;
+  --bg-ouro: #ffc3c3;
+  --bg-yellow: #FFC400;
+  --bg-orange: #FF8C00;
+  --bg-hover: #FFE8A3;
+  --bg-white: #FFFFFF;
+
+  /* ========= TEXTO ========= */
+  --text-dark: #2A2A2A;
+  --text-medium: #595959;
+  --text-light: #eee;
+  --color-grey: #333633;
+
+  /* ========= BORDAS ========= */
+  --border: #E5E5E5;
+  --border-soft: #F0F0F0;
+
+  /* ========= ESTADOS ========= */
+  --success: #28a745;
+  --warning: #ffc107;
+  --danger: #dc3545;
+
+  /* ========= SOMBRAS ========= */
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Classes de texto */
+
+.text-primary { color: var(--primary) !important; }
+.text-primary-light { color: var(--primary-light) !important; }
+.text-primary-soft { color: var(--primary-soft) !important; }
+.text-primary-dark { color: var(--primary-dark) !important; }
+
+.text-dark { color: var(--text-dark) !important; }
+.text-medium { color: var(--text-medium) !important; }
+.text-light { color: var(--text-light) !important; }
+.text-grey { color: var(--color-grey) !important; }
+
+.text-success { color: var(--success) !important; }
+.text-warning { color: var(--warning) !important; }
+.text-danger { color: var(--danger) !important; }
+
+/* Classes de background */
+.bg-primary { background-color: var(--primary) !important; }
+.bg-primary-light { background-color: var(--primary-light) !important; }
+.bg-primary-soft { background-color: var(--primary-soft) !important; }
+.bg-primary-dark { background-color: var(--primary-dark) !important; }
+
+.bg-main { background-color: var(--bg-main) !important; }
+.bg-soft { background-color: var(--bg-soft) !important; }
+.bg-light { background-color: var(--bg-light) !important; }
+.bg-yellow { background-color: var(--bg-yellow) !important; }
+.bg-hover { background-color: var(--bg-hover) !important; }
+.bg-white { background-color: var(--bg-white) !important; }
+
+.bg-success { background-color: var(--success) !important; }
+.bg-warning { background-color: var(--warning) !important; }
+.bg-danger { background-color: var(--danger) !important; }
+
+.btn-primary{
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+}
+.modal-header, .menu-container {
+  background: var(--bg-ouro);
+}
+
+html, body {
+    overflow-x: hidden;
+    width: 100%;
+    position: relative;
+}
+
+body {
+    font-family: var(--font-primary);
+    background: var(--bg-main);
+}
+p, .horous-day{
+    color: var(--color-grey);
+}
+.small{
+    font-size: 0.813rem !important;
+}
+.title-section-product{
+    font-size: clamp(1.125rem, 2vw, 2rem);
+    color: var(--primary);
+}
