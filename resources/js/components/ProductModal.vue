@@ -284,53 +284,6 @@
               </div>
             </div>
 
-            <!-- Opções (Sabores/Tamanhos) - apenas para produtos normais -->
-            <div class="col-md-12" v-if="!product?.is_combo && hasOptions">
-              <div
-                v-for="group in optionGroups"
-                :key="group.id"
-                class="mb-4"
-              >
-                <h6 class="fw-bold text-primary text-center mb-4">
-                  {{ group.name }}
-                </h6>
-
-                <div
-                  v-for="item in group.options"
-                  :key="item.id"
-                  class="d-flex align-items-center border gap-1 rounded p-0 mb-2 option-item pe-3"
-                  :class="{ active: isOptionSelected(item) }"
-                  @click="selectOption(item)"
-                >
-                  <img
-                    :src="productImage"
-                    class="me-3 cover"
-                    width="105"
-                    height="105"
-                    :alt="item.name"
-                  />
-
-                  <div class="flex-grow-1">
-                    <div class="fw-semibold">
-                      {{ item.name }}
-                    </div>
-                    <small class="text-muted">
-                      {{ item.description }}
-                    </small>
-                    <div v-if="item.price > 0" class="text-primary small fw-bold">
-                      + R$ {{ formatPrice(item.price) }}
-                    </div>
-                  </div>
-
-                  <input
-                    type="radio"
-                    :checked="isOptionSelected(item)"
-                    class="me-3"
-                  />
-                </div>
-              </div>
-            </div>
-
             <!-- Opção de Tamanhos (grupo do tipo radio) -->
             <div class="col-md-12" v-if="!product?.is_combo && hasSizes">
               <div class="mb-4">
@@ -508,10 +461,6 @@
     return '/images/default.png'
   })
 
-  const hasOptions = computed(() => {
-    return props.product?.option_groups?.length > 0 && !props.product?.is_combo
-  })
-
   // Grupos do tipo radio para tamanhos
   const sizeOptions = computed(() => {
     if (!props.product?.option_groups) return []
@@ -526,7 +475,7 @@
   // Grupos do tipo checkbox para sabores
   const flavorOptions = computed(() => {
     if (!props.product?.option_groups) return []
-    const flavorGroup = props.product.option_groups.find(g => g.type === 'checkbox')
+    const flavorGroup = props.product.option_groups.find(g => g.type === 'checkbox' && g.name.toLowerCase().includes('sabor'))
     return flavorGroup?.options || []
   })
 
@@ -536,8 +485,9 @@
 
   const hasAditionals = computed(() => {
     if (!props.product?.option_groups) return false
-    // Para produtos normais, todos os grupos checkbox são adicionais
-    const aditionalGroupsList = props.product.option_groups.filter(g => g.type === 'checkbox')
+    const aditionalGroupsList = props.product.option_groups.filter(g => 
+      g.type === 'checkbox' && !g.name.toLowerCase().includes('sabor')
+    )
     return aditionalGroupsList.length > 0 && !props.product?.is_combo
   })
 
@@ -546,7 +496,7 @@
   })
 
   const maxFlavors = computed(() => {
-    const flavorGroup = props.product?.option_groups?.find(g => g.type === 'checkbox')
+    const flavorGroup = props.product?.option_groups?.find(g => g.type === 'checkbox' && g.name.toLowerCase().includes('sabor'))
     return flavorGroup?.max_selections || 2
   })
 
@@ -556,14 +506,9 @@
 
   const aditionalGroups = computed(() => {
     if (!props.product?.option_groups) return []
-    // Para produtos normais, todos os grupos checkbox são adicionais
-    return props.product.option_groups.filter(g => g.type === 'checkbox')
-  })
-
-  const optionGroups = computed(() => {
-    if (!props.product?.option_groups) return []
-    // Retorna grupos que não são radio nem checkbox (outros tipos)
-    return props.product.option_groups.filter(g => g.type !== 'checkbox' && g.type !== 'radio')
+    return props.product.option_groups.filter(g => 
+      g.type === 'checkbox' && !g.name.toLowerCase().includes('sabor')
+    )
   })
 
   const currentPrice = computed(() => {
@@ -640,7 +585,10 @@
   })
     
   const canSubmit = computed(() => {
+    // Se está editando, sempre pode enviar
     if (isEditing.value) return true
+    
+    // Se é combo, verifica itens obrigatórios
     if (isCombo.value) {
       if (!props.product?.combo_items) return true
       
@@ -659,9 +607,23 @@
       }
       return true
     }
-    if (hasOptions.value && !selectedOption.value) return false
-    if (hasSizes.value && !selectedSize.value) return false
-    if (hasFlavors.value && selectedFlavors.value.length === 0) return false
+    
+    // Para produtos normais
+    // Se não tem nenhuma personalização, pode adicionar direto
+    if (!hasSizes.value && !hasFlavors.value && !hasAditionals.value) {
+      return true
+    }
+    
+    // Se tem tamanhos e nenhum selecionado
+    if (hasSizes.value && !selectedSize.value) {
+      return false
+    }
+    
+    // Se tem sabores e nenhum selecionado
+    if (hasFlavors.value && selectedFlavors.value.length === 0) {
+      return false
+    }
+    
     return true
   })
 
@@ -674,10 +636,7 @@
     return null
   }
 
-  const isOptionSelected = (item) => selectedOption.value === item.id
   const isFlavorSelected = (flavor) => selectedFlavors.value.some(f => f.id === flavor.id)
-
-  const selectOption = (item) => { selectedOption.value = item.id }
   
   const toggleFlavor = (flavor) => {
     const index = selectedFlavors.value.findIndex(f => f.id === flavor.id)
@@ -1076,21 +1035,18 @@
       oldPrice: currentOldPrice.value,
       image: productImage.value,
       cashback: props.product.cashback || 0,
-      selectedOption: selectedOption.value,
       selectedSize: selectedSize.value,
       selectedFlavors: selectedFlavors.value,
-      originalSelectedOption: originalSelectedOption.value,
-      originalSelectedSize: originalSelectedSize.value,
-      originalSelectedFlavors: originalSelectedFlavors.value,
       aditionals: updatedAditionals,
-      option_groups: props.product.option_groups,
-      cuisineType: props.product.cuisine_type,
       isCombo: false
     }
   }
 
   function addToCart() {
-    if (!props.product) return
+    if (!props.product) {
+      toast.error('Produto inválido!')
+      return
+    }
 
     if (isCombo.value) {
       const comboItem = prepareComboForCart()
@@ -1130,14 +1086,12 @@
   }
 
   const resetState = () => {
-    selectedOption.value = null
     selectedSize.value = null
     selectedFlavors.value = []
     aditionalState.value = {}
     comboAddonsState.value = {}
     comboItemSelections.value = {}
     
-    originalSelectedOption.value = null
     originalSelectedSize.value = null
     originalSelectedFlavors.value = []
     originalAditionalsState.value = {}
@@ -1151,22 +1105,18 @@
         await nextTick()
         
         if (props.product.is_combo) {
-          // Carrega seleções existentes (para edição)
           if (props.product.comboItemSelections && Object.keys(props.product.comboItemSelections).length > 0) {
             comboItemSelections.value = JSON.parse(JSON.stringify(props.product.comboItemSelections))
           }
           
-          // Carrega addons existentes
           if (props.product.comboAddonsState && Object.keys(props.product.comboAddonsState).length > 0) {
             comboAddonsState.value = JSON.parse(JSON.stringify(props.product.comboAddonsState))
           }
           
-          // Inicializa seleções padrão se necessário
           if (Object.keys(comboItemSelections.value).length === 0) {
             initComboItemSelections()
           }
           
-          // Carrega itemSelections para edição
           if (props.product.itemSelections && Object.keys(props.product.itemSelections).length > 0) {
             Object.entries(props.product.itemSelections).forEach(([itemId, selectionData]) => {
               if (comboItemSelections.value[itemId]) {
@@ -1189,7 +1139,6 @@
             })
           }
           
-          // Carrega selectedAddons para edição
           if (props.product.selectedAddons && props.product.selectedAddons.length > 0) {
             props.product.selectedAddons.forEach(addon => {
               comboAddonsState.value[addon.id] = addon.quantity
@@ -1210,11 +1159,6 @@
             }
           }
           
-          // Carrega dados salvos (para edição)
-          if (props.product.selectedOption) {
-            selectedOption.value = props.product.selectedOption
-            originalSelectedOption.value = props.product.selectedOption
-          }
           if (props.product.selectedSize) {
             selectedSize.value = props.product.selectedSize
             originalSelectedSize.value = props.product.selectedSize
@@ -1224,7 +1168,6 @@
             originalSelectedFlavors.value = [...props.product.selectedFlavors]
           }
 
-          // Carrega adicionais
           const state = {}
           const originalState = {}
           
