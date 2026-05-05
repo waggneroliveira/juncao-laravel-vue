@@ -43,11 +43,11 @@ use App\Http\Controllers\ProductSectionController;
 use App\Models\PlanCategory;
 use App\Models\PlanSection;
 
-Route::get('painel/', function () {
+Route::get('control/', function () {
     return redirect()->route('admin.dashboard.painel');
 });
 
-Route::prefix('painel/')->group(function () {
+Route::prefix('control/')->group(function () {
     Route::get('login', function () {
         return view('admin.auth.login');
     })->name('admin.dashboard.painel');

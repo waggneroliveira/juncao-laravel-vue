@@ -57,7 +57,7 @@ class AuthController extends Controller
           
         session()->flash('success', 'Login realizado com sucesso!');
 
-        return redirect()->intended('painel/dashboard');
+        return redirect()->intended('control/dashboard');
     }
 
 
@@ -87,6 +87,6 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         session()->flash('success', 'Logout realizado com sucesso!');
-        return redirect('/painel/success-logout');
+        return redirect('/control/success-logout');
     }
 }

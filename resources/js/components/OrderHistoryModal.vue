@@ -149,7 +149,8 @@ const props = defineProps({
   },
   userId: {
     type: [Number, String],
-    required: true
+    required: true,
+    default: null
   }
 })
 
