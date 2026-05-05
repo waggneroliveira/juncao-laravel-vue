@@ -94,81 +94,11 @@
                         <li class="menu-title">Listagem</li>
                         @if (Auth::user()->hasRole('Super') || 
                         Auth::user()->can('usuario.tornar usuario master') || 
-                        Auth::user()->can('slide.visualizar'))
-                            <li class="menu-item">
-                                <a href="{{route('admin.dashboard.slide.index')}}" class="menu-link">
-                                    <span class="menu-icon"><i class="mdi mdi-image-size-select-actual"></i></span>
-                                    <span class="menu-text"> Slides </span>
-                                </a>
-                            </li>
-                        @endif
-                        @if (Auth::user()->hasRole('Super') || 
-                        Auth::user()->can('usuario.tornar usuario master') || 
-                        Auth::user()->can('topicos.visualizar'))
-                            <li class="menu-item">
-                                <a href="{{route('admin.dashboard.topic.index')}}" class="menu-link">
-                                    <span class="menu-icon"><i class="mdi mdi-format-list-bulleted"></i></span>
-                                    <span class="menu-text"> Tópicos </span>
-                                </a>
-                            </li>
-                        @endif
-                        @if (Auth::user()->hasRole('Super') || 
-                        Auth::user()->can('usuario.tornar usuario master') || 
-                        Auth::user()->can('sobre.visualizar'))
-                            <li class="menu-item">
-                                <a href="{{route('admin.dashboard.about.index')}}" class="menu-link">
-                                    <span class="menu-icon"><i class="mdi mdi mdi-domain"></i></span>
-                                    <span class="menu-text"> Sobre </span>
-                                </a>
-                            </li>
-                        @endif
-                        @if (Auth::user()->hasRole('Super') || 
-                        Auth::user()->can('usuario.tornar usuario master') || 
-                        Auth::user()->can('parceiros.visualizar'))
-                            <li class="menu-item">
-                                <a href="{{route('admin.dashboard.partner.index')}}" class="menu-link">
-                                    <span class="menu-icon"><i class="mdi mdi-handshake-outline"></i></span>
-                                    <span class="menu-text"> Parceiros </span>
-                                </a>
-                            </li>
-                        @endif
-                        @if (Auth::user()->hasRole('Super') || 
-                        Auth::user()->can('usuario.tornar usuario master') || 
-                        Auth::user()->can('categorias do plano.visualizar'))
-                            <li class="menu-item">
-                                <a href="{{route('admin.dashboard.planCategory.index')}}" class="menu-link">
-                                    <span class="menu-icon"><i class="mdi mdi mdi-tag-multiple"></i></span>
-                                    <span class="menu-text"> Categoria de Plano </span>
-                                </a>
-                            </li>
-                        @endif
-                        @if (Auth::user()->hasRole('Super') || 
-                        Auth::user()->can('usuario.tornar usuario master') || 
-                        Auth::user()->can('planos.visualizar'))
-                            <li class="menu-item">
-                                <a href="{{route('admin.dashboard.plan.index')}}" class="menu-link">
-                                    <span class="menu-icon"><i class="mdi mdi mdi-clipboard-text-outline"></i></span>
-                                    <span class="menu-text"> Planos </span>
-                                </a>
-                            </li>
-                        @endif
-                        @if (Auth::user()->hasRole('Super') || 
-                        Auth::user()->can('usuario.tornar usuario master') || 
                         Auth::user()->can('produtos.visualizar'))
                             <li class="menu-item">
                                 <a href="{{route('admin.dashboard.product.index')}}" class="menu-link">
                                     <span class="menu-icon"><i class="mdi mdi mdi-package-variant-closed"></i></span>
                                     <span class="menu-text"> Produtos </span>
-                                </a>
-                            </li>
-                        @endif
-                        @if (Auth::user()->hasRole('Super') || 
-                        Auth::user()->can('usuario.tornar usuario master') || 
-                        Auth::user()->can('depoimentos.visualizar'))
-                            <li class="menu-item">
-                                <a href="{{route('admin.dashboard.depoiment.index')}}" class="menu-link">
-                                    <span class="menu-icon"><i class="mdi mdi mdi-comment-quote-outline"></i></span>
-                                    <span class="menu-text"> Depoimentos </span>
                                 </a>
                             </li>
                         @endif
