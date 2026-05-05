@@ -5,7 +5,7 @@
         <!-- Badge de COMBO -->
         <span
           class="badge combo position-absolute top-0 start-0 m-2 d-flex align-items-center gap-1"
-          v-if="product.isCombo"
+          v-if="product.is_combo"
         >
           <i class="bi bi-bullseye"></i>
           COMBO
@@ -69,14 +69,14 @@
   const cart = useCartStore()
 
   // Verifica se é combo
-  const isCombo = computed(() => {
-    return props.product?.isCombo === true
+  const is_combo = computed(() => {
+    return props.product?.is_combo === true
   })
 
   // Verifica se o produto tem variações (tamanhos ou opções com preços diferentes)
   const hasVariations = computed(() => {
     // Combos sempre abrem modal
-    if (isCombo.value) return false
+    if (is_combo.value) return false
     
     // Verifica se tem tamanhos com preços diferentes
     if (props.product.customization?.hasSize && props.product.customization?.sizes?.length > 0) {
@@ -131,7 +131,7 @@
   // Verifica se o produto tem opções de personalização
   const hasCustomizations = () => {
     // Combos SEMPRE abrem modal
-    if (isCombo.value) return true
+    if (is_combo.value) return true
     
     // Verifica se tem opções (sabores)
     if (props.product.options && props.product.options.length > 0) return true
@@ -169,27 +169,50 @@
       selectedSize: null,
       selectedFlavors: [],
       aditionals: [],
-      isCombo: false
+      is_combo: false
     }
   }
 
-  const handleClick = () => {
-    if (hasCustomizations()) {
-      // Produto com personalizações OU combo -> abre modal
-      emit('open', props.product)
-    } else {
-      // Produto simples -> adiciona direto ao carrinho
-      const simpleProduct = prepareSimpleProduct()
-      cart.add(simpleProduct)
-      // Opcional: mostrar toast de sucesso
-      // toast.success(`${props.product.name} adicionado ao carrinho!`)
-    }
+const handleClick = () => {
+  console.log('🖱️ Produto clicado:', props.product.name)
+  console.log('📊 isCombo:', props.product.is_combo)
+  console.log('📊 hasCustomizations:', hasCustomizations())
+  
+  if (hasCustomizations()) {
+    console.log('✅ Abrindo modal para:', props.product.name)
+    emit('open', props.product)
+  } else {
+    console.log('➕ Adicionando direto ao carrinho:', props.product.name)
+    const simpleProduct = prepareSimpleProduct()
+    cart.add(simpleProduct)
   }
+}
 
-  const formatPrice = (value) => {
-    if (!value && value !== 0) return '0,00'
-    return value.toFixed(2).replace('.', ',')
+const formatPrice = (value) => {
+  // Tratar casos nulos/undefined
+  if (value === null || value === undefined) {
+    return '0,00'
   }
+  
+  // Converter para número
+  let number = value
+  
+  // Se for string, tentar converter
+  if (typeof value === 'string') {
+    // Limpar string (remover R$, espaços, pontos de milhar)
+    const cleanString = value.replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')
+    number = parseFloat(cleanString)
+  }
+  
+  // Verificar se é número válido
+  if (isNaN(number) || typeof number !== 'number') {
+    console.warn('Valor não é um número válido:', value)
+    return '0,00'
+  }
+  
+  // Formatar com 2 casas decimais
+  return number.toFixed(2).replace('.', ',')
+}
 </script>
 
 <style scoped>

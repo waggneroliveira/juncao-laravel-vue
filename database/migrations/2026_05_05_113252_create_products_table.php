@@ -36,6 +36,7 @@ return new class extends Migration
 
             $table->string('path_image')->nullable();
             $table->boolean('active')->default(0);
+            $table->boolean('highlights')->default(0);
             $table->integer('sorting')->default(0);
             $table->timestamps();
         });

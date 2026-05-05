@@ -25,6 +25,7 @@ class Product extends Model
         'cuisine_type',
         'is_combo',
         'featured',
+        'highlights',
         'order',
         'tags',
         'specifications',
@@ -35,7 +36,8 @@ class Product extends Model
 
     protected $casts = [
         'tags' => 'array',
-        'specifications' => 'array'
+        'specifications' => 'array',
+        'is_combo' => 'boolean'        
     ];
 
     public function category()
@@ -61,11 +63,6 @@ class Product extends Model
     public function stock()
     {
         return $this->hasOne(ProductStock::class);
-    }
-
-    public function scopeActive($query)
-    {
-        return $query->where('active', 1);
     }
     public function scopeSorting($query)
     {

@@ -29,6 +29,7 @@ class ProductSeeder extends Seeder
                     'price' => 109.90,
                     'oldPrice' => 119.90,
                     'category' => 'hamburguers',
+                    'active' => 1,
                     'productType' => 'food',
                     'customization' => [
                         'toppings' => [
@@ -43,6 +44,7 @@ class ProductSeeder extends Seeder
                     'price' => 59.90,
                     'category' => 'combos',
                     'productType' => 'combo',
+                    'active' => 1,
                     'comboItems' => [
                         [
                             'name' => 'Refrigerante',
@@ -60,17 +62,18 @@ class ProductSeeder extends Seeder
 
             foreach ($products as $p) {
 
-                // 🧠 CATEGORY (com slug único)
+                // 🧠 CATEGORY (corrigido com updateOrCreate)
                 $categoryName = $p['category'] ?? 'geral';
 
-                $categorySlug = $this->uniqueSlug(Category::class, $categoryName);
-
-                $category = Category::firstOrCreate(
-                    ['slug' => $categorySlug],
-                    ['name' => $categoryName]
+                $category = Category::updateOrCreate(
+                    ['slug' => Str::slug($categoryName)],
+                    [
+                        'name' => $categoryName,
+                        'active' => 1
+                    ]
                 );
 
-                // 🧠 PRODUCT (com slug)
+                // 🧠 PRODUCT
                 $product = Product::create([
                     'name' => $p['name'],
                     'slug' => $this->uniqueSlug(Product::class, $p['name']),
@@ -82,10 +85,11 @@ class ProductSeeder extends Seeder
                     'category_id' => $category->id,
                     'product_type' => $p['productType'],
 
-                    'is_combo' => $p['productType'] === 'combo'
+                    'active' => $p['active'] ?? 1,
+                    'is_combo' => $p['isCombo'] ?? ($p['productType'] === 'combo')
                 ]);
 
-                // 📸 IMAGEM PADRÃO
+                // 📸 IMAGEM
                 ProductImage::create([
                     'product_id' => $product->id,
                     'url' => '/images/default.png'
@@ -125,7 +129,9 @@ class ProductSeeder extends Seeder
                         $comboItem = ComboItem::create([
                             'product_id' => $product->id,
                             'name' => $item['name'],
-                            'item_key' => Str::slug($item['name'])
+                            'item_key' => Str::slug($item['name']),
+                            'quantity' => $item['quantity'] ?? 1,
+                            'required' => $item['required'] ?? true
                         ]);
 
                         if (!empty($item['options'])) {
@@ -134,7 +140,8 @@ class ProductSeeder extends Seeder
                                 'combo_item_id' => $comboItem->id,
                                 'name' => $item['options']['title'] ?? $item['name'],
                                 'type' => $item['options']['type'],
-                                'required' => true
+                                'required' => true,
+                                'max_selections' => $item['options']['maxSelections'] ?? 1
                             ]);
 
                             foreach ($item['options']['choices'] as $choice) {
@@ -159,7 +166,7 @@ class ProductSeeder extends Seeder
     }
 
     /**
-     * 🔥 SLUG ÚNICO (EVITA DUPLICAÇÃO)
+     * 🔥 SLUG ÚNICO (somente para products)
      */
     private function uniqueSlug($model, $text)
     {

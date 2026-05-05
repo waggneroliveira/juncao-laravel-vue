@@ -14,8 +14,10 @@ return new class extends Migration
         Schema::create('categories', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('path_image')->nullable();
             $table->string('slug');
+            $table->string('path_image')->nullable();
+            $table->boolean('active')->default(0);
+            $table->integer('sorting')->default(0);
             $table->timestamps();
         });
     }
