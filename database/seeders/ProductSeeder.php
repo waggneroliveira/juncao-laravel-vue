@@ -45,10 +45,10 @@ class ProductSeeder extends Seeder
                             ['name' => 'Molho Especial', 'price' => 2.00],
                         ],
                         'spiciness' => [
-                            ['name' => 'Sem Pimenta', 'level' => 0],
-                            ['name' => 'Leve', 'level' => 1],
-                            ['name' => 'Médio', 'level' => 2],
-                            ['name' => 'Picante', 'level' => 3],
+                            ['name' => 'Sem Pimenta', 'price' => 0],
+                            ['name' => 'Leve', 'price' => 0],
+                            ['name' => 'Médio', 'price' => 0],
+                            ['name' => 'Picante', 'price' => 0],
                         ]
                     ],
 
@@ -70,12 +70,12 @@ class ProductSeeder extends Seeder
 
                     'customization' => [
                         'sizes' => [
-                            ['name' => 'P', 'price' => 45.90],
-                            ['name' => 'M', 'price' => 59.90],
-                            ['name' => 'G', 'price' => 79.90],
+                            ['name' => 'Pequena', 'price' => 45.90],
+                            ['name' => 'Média', 'price' => 59.90],
+                            ['name' => 'Grande', 'price' => 79.90],
                         ],
                         'flavors' => [
-                            ['name' => 'Portuguesa', 'price' => 0],
+                            ['name' => 'Portuguesa', 'price' => 0, 'is_default' => true],
                             ['name' => 'Calabresa', 'price' => 5.00],
                             ['name' => 'Frango com Catupiry', 'price' => 8.00],
                             ['name' => 'Margherita', 'price' => 3.00],
@@ -113,11 +113,11 @@ class ProductSeeder extends Seeder
                             'options' => [
                                 'type' => 'select',
                                 'choices' => [
-                                    ['name' => 'Kuat'],
-                                    ['name' => 'Fanta Laranja'],
-                                    ['name' => 'Fanta Uva'],
-                                    ['name' => 'Pepsi'],
-                                    ['name' => 'Guaraná'],
+                                    ['name' => 'Kuat', 'price' => 0],
+                                    ['name' => 'Fanta Laranja', 'price' => 0],
+                                    ['name' => 'Fanta Uva', 'price' => 0],
+                                    ['name' => 'Pepsi', 'price' => 0],
+                                    ['name' => 'Guaraná', 'price' => 0],
                                 ]
                             ]
                         ],
@@ -125,13 +125,14 @@ class ProductSeeder extends Seeder
                             'name' => 'Rolinhos',
                             'quantity' => 4,
                             'options' => [
-                                'type' => 'checkbox',
+                                'type' => 'multicheckbox',
+                                'maxSelections' => 4,
                                 'choices' => [
-                                    ['name' => 'Queijo Misto'],
-                                    ['name' => 'Romeu e Julieta'],
-                                    ['name' => 'Carne'],
-                                    ['name' => 'Frango'],
-                                    ['name' => 'Legumes'],
+                                    ['name' => 'Queijo Misto', 'price' => 0],
+                                    ['name' => 'Romeu e Julieta', 'price' => 0],
+                                    ['name' => 'Carne', 'price' => 0],
+                                    ['name' => 'Frango', 'price' => 0],
+                                    ['name' => 'Legumes', 'price' => 0],
                                 ]
                             ]
                         ]
@@ -163,12 +164,13 @@ class ProductSeeder extends Seeder
                             'name' => 'Pizza',
                             'options' => [
                                 'type' => 'multicheckbox',
+                                'maxSelections' => 2,
                                 'choices' => [
-                                    ['name' => 'Portuguesa'],
-                                    ['name' => 'Calabresa'],
-                                    ['name' => 'Frango com Catupiry'],
-                                    ['name' => 'Margherita'],
-                                    ['name' => 'Quatro Queijos'],
+                                    ['name' => 'Portuguesa', 'price' => 0, 'is_default' => true],
+                                    ['name' => 'Calabresa', 'price' => 0],
+                                    ['name' => 'Frango com Catupiry', 'price' => 0],
+                                    ['name' => 'Margherita', 'price' => 0],
+                                    ['name' => 'Quatro Queijos', 'price' => 5.00],
                                 ]
                             ]
                         ],
@@ -177,10 +179,10 @@ class ProductSeeder extends Seeder
                             'options' => [
                                 'type' => 'select',
                                 'choices' => [
-                                    ['name' => 'Coca-Cola'],
-                                    ['name' => 'Zero'],
-                                    ['name' => 'Guaraná'],
-                                    ['name' => 'Pepsi'],
+                                    ['name' => 'Coca-Cola', 'price' => 0, 'is_default' => true],
+                                    ['name' => 'Coca-Cola Zero', 'price' => 0],
+                                    ['name' => 'Guaraná', 'price' => 0],
+                                    ['name' => 'Pepsi', 'price' => 0],
                                 ]
                             ]
                         ],
@@ -189,13 +191,19 @@ class ProductSeeder extends Seeder
                             'options' => [
                                 'type' => 'select',
                                 'choices' => [
-                                    ['name' => 'Pudim'],
-                                    ['name' => 'Torta'],
-                                    ['name' => 'Brownie'],
-                                    ['name' => 'Sorvete'],
+                                    ['name' => 'Pudim', 'price' => 0, 'is_default' => true],
+                                    ['name' => 'Torta de Limão', 'price' => 3.00],
+                                    ['name' => 'Brownie', 'price' => 4.00],
+                                    ['name' => 'Sorvete', 'price' => 2.00],
                                 ]
                             ]
                         ]
+                    ],
+
+                    'comboAddons' => [
+                        ['name' => 'Molho Especial', 'price' => 2.00],
+                        ['name' => 'Queijo Extra', 'price' => 3.00],
+                        ['name' => 'Borda Recheada', 'price' => 5.00],
                     ],
 
                     'stock' => ['quantity' => 15]
@@ -215,16 +223,19 @@ class ProductSeeder extends Seeder
                     'isCombo' => true,
 
                     'comboItems' => [
-                        ['name' => 'Hambúrguer Artesanal'],
+                        [
+                            'name' => 'Hambúrguer Artesanal',
+                            'quantity' => 1,
+                        ],
                         [
                             'name' => 'Acompanhamento',
                             'options' => [
-                                'type' => 'select',
+                                'type' => 'radio',
                                 'choices' => [
-                                    ['name' => 'Batata Frita'],
-                                    ['name' => 'Batata Rústica'],
-                                    ['name' => 'Onion Rings'],
-                                    ['name' => 'Salada'],
+                                    ['name' => 'Batata Frita', 'price' => 0, 'is_default' => true],
+                                    ['name' => 'Batata Rústica', 'price' => 2.00],
+                                    ['name' => 'Onion Rings', 'price' => 3.00],
+                                    ['name' => 'Salada', 'price' => 1.00],
                                 ]
                             ]
                         ],
@@ -233,13 +244,19 @@ class ProductSeeder extends Seeder
                             'options' => [
                                 'type' => 'select',
                                 'choices' => [
-                                    ['name' => 'Coca-Cola'],
-                                    ['name' => 'Guaraná'],
-                                    ['name' => 'Suco Natural'],
-                                    ['name' => 'Água'],
+                                    ['name' => 'Coca-Cola', 'price' => 0, 'is_default' => true],
+                                    ['name' => 'Guaraná', 'price' => 0],
+                                    ['name' => 'Suco Natural', 'price' => 2.00],
+                                    ['name' => 'Água', 'price' => 0],
                                 ]
                             ]
                         ]
+                    ],
+
+                    'comboAddons' => [
+                        ['name' => 'Bacon Extra', 'price' => 3.00],
+                        ['name' => 'Queijo Extra', 'price' => 2.00],
+                        ['name' => 'Ovo', 'price' => 2.00],
                     ],
 
                     'stock' => ['quantity' => 30]
@@ -259,7 +276,7 @@ class ProductSeeder extends Seeder
 
                     'customization' => [
                         'sizes' => [
-                            ['name' => '300ml', 'price' => 19.90],
+                            ['name' => '300ml', 'price' => 19.90, 'is_default' => true],
                             ['name' => '500ml', 'price' => 27.90],
                             ['name' => '700ml', 'price' => 34.90],
                         ],
@@ -282,6 +299,8 @@ class ProductSeeder extends Seeder
                     'name' => 'Coca-Cola 2L',
                     'description' => 'Refrigerante gelado',
                     'price' => 12.90,
+                    'oldPrice' => 0,
+                    'cashback' => 2,
                     'category' => 'bebidas',
                     'productType' => 'beverage',
                     'isCombo' => false,
@@ -290,7 +309,7 @@ class ProductSeeder extends Seeder
                         'sizes' => [
                             ['name' => '350ml', 'price' => 5.90],
                             ['name' => '600ml', 'price' => 8.90],
-                            ['name' => '2L', 'price' => 12.90],
+                            ['name' => '2L', 'price' => 12.90, 'is_default' => true],
                         ]
                     ],
 
@@ -301,21 +320,49 @@ class ProductSeeder extends Seeder
                     'name' => 'Coca-Cola 1L',
                     'description' => 'Refrigerante gelado',
                     'price' => 9.90,
+                    'oldPrice' => 0,
+                    'cashback' => 2,
                     'category' => 'bebidas',
                     'productType' => 'beverage',
                     'isCombo' => false,
 
                     'stock' => ['quantity' => 200]
                 ],
+
+                // =========================
+                // 🍨 SOBREMESA
+                // =========================
+                [
+                    'name' => 'Petit Gateau',
+                    'description' => 'Brownie quente com sorvete de creme e calda de chocolate',
+                    'price' => 18.90,
+                    'oldPrice' => 0,
+                    'cashback' => 3,
+                    'category' => 'sobremesas',
+                    'productType' => 'dessert',
+                    'isCombo' => false,
+
+                    'customization' => [
+                        'toppings' => [
+                            ['name' => 'Calda de Morango', 'price' => 2.00],
+                            ['name' => 'Calda de Caramelo', 'price' => 2.00],
+                            ['name' => 'Granulado', 'price' => 1.00],
+                        ]
+                    ],
+
+                    'stock' => ['quantity' => 40]
+                ],
             ];
 
             foreach ($products as $p) {
 
+                // Cria ou busca a categoria
                 $category = Category::updateOrCreate(
                     ['slug' => Str::slug($p['category'])],
-                    ['name' => $p['category'], 'active' => 1]
+                    ['name' => $p['category'], 'active' => 1, 'sorting' => 0]
                 );
 
+                // Cria o produto
                 $product = Product::create([
                     'name' => $p['name'],
                     'slug' => Str::slug($p['name']),
@@ -326,108 +373,172 @@ class ProductSeeder extends Seeder
                     'category_id' => $category->id,
                     'product_type' => $p['productType'],
                     'is_combo' => $p['isCombo'],
-                    'active' => 1
+                    'active' => 1,
+                    'featured' => $p['featured'] ?? false,
+                    'highlights' => $p['highlights'] ?? false,
+                    'sorting' => $p['sorting'] ?? 0
                 ]);
 
+                // Adiciona imagem padrão
                 ProductImage::create([
                     'product_id' => $product->id,
                     'url' => '/images/default.png'
                 ]);
 
+                // Adiciona stock
                 ProductStock::create([
                     'product_id' => $product->id,
                     'quantity' => $p['stock']['quantity'] ?? 50,
                     'available' => true
                 ]);
 
-                // =========================
-                // CUSTOMIZATION
-                // =========================
-                if (!empty($p['customization'])) {
-
+                // ==========================================
+                // CUSTOMIZATION - Produtos normais
+                // ==========================================
+                if (!empty($p['customization']) && !$p['isCombo']) {
                     foreach ($p['customization'] as $type => $items) {
-
+                        // Define o tipo baseado no nome do grupo
+                        $groupType = 'checkbox';
+                        $maxSelections = null;
+                        $required = false;
+                        
+                        $typeLower = strtolower($type);
+                        
+                        // Identifica o tipo correto
+                        if (str_contains($typeLower, 'size') || str_contains($typeLower, 'tamanho')) {
+                            $groupType = 'radio';
+                            $required = true;
+                            $maxSelections = 1;
+                        } elseif (str_contains($typeLower, 'flavor') || str_contains($typeLower, 'sabor')) {
+                            $groupType = 'checkbox';
+                            $required = false;
+                            $maxSelections = 2; // máximo de sabores
+                        } elseif (str_contains($typeLower, 'topping') || str_contains($typeLower, 'adicional')) {
+                            $groupType = 'checkbox';
+                            $required = false;
+                            $maxSelections = null;
+                        }
+                        
                         $group = ProductOptionGroup::create([
                             'product_id' => $product->id,
+                            'combo_item_id' => null,
                             'name' => ucfirst($type),
-                            'type' => 'checkbox',
-                            'required' => false
+                            'type' => $groupType,
+                            'required' => $required,
+                            'max_selections' => $maxSelections,
+                            'created_at' => now(),
+                            'updated_at' => now()
                         ]);
-
+                        
                         foreach ($items as $item) {
                             ProductOption::create([
                                 'option_group_id' => $group->id,
                                 'name' => $item['name'],
-                                'price' => $item['price'] ?? 0
+                                'price' => $item['price'] ?? 0,
+                                'is_default' => $item['is_default'] ?? false,
+                                'max_quantity' => $item['max_quantity'] ?? null,
+                                'description' => $item['description'] ?? null,
+                                'created_at' => now(),
+                                'updated_at' => now()
                             ]);
                         }
                     }
                 }
 
-                // =========================
-                // COMBOS
-                // =========================
-                if (!empty($p['comboItems'])) {
-
+                // ==========================================
+                // COMBOS - Itens do combo
+                // ==========================================
+                if (!empty($p['comboItems']) && $p['isCombo']) {
                     foreach ($p['comboItems'] as $item) {
-
                         $comboItem = ComboItem::create([
                             'product_id' => $product->id,
                             'name' => $item['name'],
                             'item_key' => Str::slug($item['name']),
                             'quantity' => $item['quantity'] ?? 1,
-                            'required' => true
+                            'required' => true,
+                            // REMOVIDA A LINHA 'price' 
+                            'created_at' => now(),
+                            'updated_at' => now()
                         ]);
-
+                        
+                        // Se o item tem opções (sabores, tamanhos, etc)
                         if (!empty($item['options'])) {
-
+                            $optionType = $item['options']['type'];
+                            $maxSelections = null;
+                            
+                            if ($optionType === 'multicheckbox') {
+                                $optionType = 'checkbox';
+                                $maxSelections = $item['options']['maxSelections'] ?? 4;
+                            } elseif ($optionType === 'select') {
+                                $maxSelections = 1;
+                            } elseif ($optionType === 'radio') {
+                                $maxSelections = 1;
+                            }
+                            
                             $group = ProductOptionGroup::create([
+                                'product_id' => null,
                                 'combo_item_id' => $comboItem->id,
                                 'name' => $item['name'],
-                                'type' => $item['options']['type'],
+                                'type' => $optionType,
                                 'required' => true,
-                                'max_selections' => $item['options']['maxSelections'] ?? 1
+                                'max_selections' => $maxSelections,
+                                'created_at' => now(),
+                                'updated_at' => now()
                             ]);
-
+                            
                             foreach ($item['options']['choices'] as $choice) {
-
                                 ProductOption::create([
                                     'option_group_id' => $group->id,
                                     'name' => $choice['name'],
-                                    'price' => $choice['price'] ?? 0
+                                    'price' => $choice['price'] ?? 0,
+                                    'is_default' => $choice['is_default'] ?? false,
+                                    'max_quantity' => $choice['max_quantity'] ?? null,
+                                    'description' => $choice['description'] ?? null,
+                                    'created_at' => now(),
+                                    'updated_at' => now()
                                 ]);
                             }
                         }
                     }
                 }
 
-                // =========================
-                // ADDONS COMBO
-                // =========================
-                if (!empty($p['comboAddons'])) {
-
+                // ==========================================
+                // COMBOS - Addons extras
+                // ==========================================
+                if (!empty($p['comboAddons']) && $p['isCombo']) {
                     $group = ProductOptionGroup::create([
                         'product_id' => $product->id,
-                        'name' => 'Addons',
+                        'combo_item_id' => null,
+                        'name' => 'Adicionais Extras',
                         'type' => 'checkbox',
-                        'required' => false
+                        'required' => false,
+                        'max_selections' => null,
+                        'created_at' => now(),
+                        'updated_at' => now()
                     ]);
-
+                    
                     foreach ($p['comboAddons'] as $addon) {
                         ProductOption::create([
                             'option_group_id' => $group->id,
                             'name' => $addon['name'],
-                            'price' => $addon['price']
+                            'price' => $addon['price'],
+                            'is_default' => false,
+                            'max_quantity' => $addon['max_quantity'] ?? 5,
+                            'description' => $addon['description'] ?? null,
+                            'created_at' => now(),
+                            'updated_at' => now()
                         ]);
                     }
                 }
             }
 
             DB::commit();
+            $this->command->info('✅ Produtos criados com sucesso!');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            dd($e->getMessage());
+            $this->command->error('❌ Erro ao criar produtos: ' . $e->getMessage());
+            throw $e;
         }
     }
 }
