@@ -24,15 +24,19 @@ class ProductSeeder extends Seeder
 
             $products = [
 
+                // =========================
                 // 🍔 HAMBÚRGUER
+                // =========================
                 [
                     'name' => 'Hambúrguer Clássico',
                     'description' => '4 smash burgers com 400g de fritas, creme de cheddar com bacon + Refrigerante',
                     'price' => 109.90,
                     'oldPrice' => 119.90,
+                    'cashback' => 5,
                     'category' => 'hamburguers',
                     'productType' => 'food',
                     'isCombo' => false,
+
                     'customization' => [
                         'toppings' => [
                             ['name' => 'Queijo Extra', 'price' => 3.50],
@@ -41,21 +45,29 @@ class ProductSeeder extends Seeder
                             ['name' => 'Molho Especial', 'price' => 2.00],
                         ],
                         'spiciness' => [
-                            'Sem Pimenta',
-                            'Leve',
-                            'Médio',
-                            'Picante'
+                            ['name' => 'Sem Pimenta', 'level' => 0],
+                            ['name' => 'Leve', 'level' => 1],
+                            ['name' => 'Médio', 'level' => 2],
+                            ['name' => 'Picante', 'level' => 3],
                         ]
-                    ]
+                    ],
+
+                    'stock' => ['quantity' => 50]
                 ],
 
+                // =========================
                 // 🍕 PIZZA
+                // =========================
                 [
                     'name' => 'Pizza Portuguesa',
                     'description' => 'Molho especial, presunto, ovos, cebola, azeitona e queijo mussarela',
                     'price' => 45.90,
+                    'oldPrice' => 0,
+                    'cashback' => 8,
                     'category' => 'pizzas',
                     'productType' => 'food',
+                    'isCombo' => false,
+
                     'customization' => [
                         'sizes' => [
                             ['name' => 'P', 'price' => 45.90],
@@ -64,24 +76,29 @@ class ProductSeeder extends Seeder
                         ],
                         'flavors' => [
                             ['name' => 'Portuguesa', 'price' => 0],
-                            ['name' => 'Calabresa', 'price' => 5],
-                            ['name' => 'Frango com Catupiry', 'price' => 8],
-                            ['name' => 'Margherita', 'price' => 3],
+                            ['name' => 'Calabresa', 'price' => 5.00],
+                            ['name' => 'Frango com Catupiry', 'price' => 8.00],
+                            ['name' => 'Margherita', 'price' => 3.00],
                         ],
                         'toppings' => [
-                            ['name' => 'Queijo Extra', 'price' => 4],
+                            ['name' => 'Queijo Extra', 'price' => 4.00],
                             ['name' => 'Orégano', 'price' => 0],
-                            ['name' => 'Azeitona Extra', 'price' => 2],
+                            ['name' => 'Azeitona Extra', 'price' => 2.00],
                         ]
-                    ]
+                    ],
+
+                    'stock' => ['quantity' => 30]
                 ],
 
+                // =========================
                 // 🍱 COMBO YAKISOBA
+                // =========================
                 [
                     'name' => 'Combo Yakisoba Completo',
                     'description' => 'Yakisoba + Refrigerante + 4 Rolinhos',
                     'price' => 59.90,
                     'oldPrice' => 89.90,
+                    'cashback' => 10,
                     'category' => 'combos',
                     'productType' => 'combo',
                     'isCombo' => true,
@@ -105,11 +122,10 @@ class ProductSeeder extends Seeder
                             ]
                         ],
                         [
-                            'name' => 'Rolinhos Primavera',
+                            'name' => 'Rolinhos',
                             'quantity' => 4,
                             'options' => [
                                 'type' => 'checkbox',
-                                'maxSelections' => 4,
                                 'choices' => [
                                     ['name' => 'Queijo Misto'],
                                     ['name' => 'Romeu e Julieta'],
@@ -121,19 +137,126 @@ class ProductSeeder extends Seeder
                         ]
                     ],
 
-                    'addons' => [
-                        ['name' => 'Hashi', 'price' => 1],
-                        ['name' => 'Molho Especial', 'price' => 2],
-                    ]
+                    'comboAddons' => [
+                        ['name' => 'Hashi', 'price' => 1.00],
+                        ['name' => 'Molho Especial', 'price' => 2.00],
+                    ],
+
+                    'stock' => ['quantity' => 20]
                 ],
 
-                // 🍨 AÇAÍ
+                // =========================
+                // 🍕 COMBO PIZZA
+                // =========================
+                [
+                    'name' => 'Combo Pizza Especial',
+                    'description' => 'Pizza Média + Refrigerante 1L + Sobremesa',
+                    'price' => 69.90,
+                    'oldPrice' => 99.90,
+                    'cashback' => 8,
+                    'category' => 'combos',
+                    'productType' => 'combo',
+                    'isCombo' => true,
+
+                    'comboItems' => [
+                        [
+                            'name' => 'Pizza',
+                            'options' => [
+                                'type' => 'multicheckbox',
+                                'choices' => [
+                                    ['name' => 'Portuguesa'],
+                                    ['name' => 'Calabresa'],
+                                    ['name' => 'Frango com Catupiry'],
+                                    ['name' => 'Margherita'],
+                                    ['name' => 'Quatro Queijos'],
+                                ]
+                            ]
+                        ],
+                        [
+                            'name' => 'Refrigerante',
+                            'options' => [
+                                'type' => 'select',
+                                'choices' => [
+                                    ['name' => 'Coca-Cola'],
+                                    ['name' => 'Zero'],
+                                    ['name' => 'Guaraná'],
+                                    ['name' => 'Pepsi'],
+                                ]
+                            ]
+                        ],
+                        [
+                            'name' => 'Sobremesa',
+                            'options' => [
+                                'type' => 'select',
+                                'choices' => [
+                                    ['name' => 'Pudim'],
+                                    ['name' => 'Torta'],
+                                    ['name' => 'Brownie'],
+                                    ['name' => 'Sorvete'],
+                                ]
+                            ]
+                        ]
+                    ],
+
+                    'stock' => ['quantity' => 15]
+                ],
+
+                // =========================
+                // 🍔 COMBO BURGER
+                // =========================
+                [
+                    'name' => 'Combo Burger',
+                    'description' => 'Hambúrguer + Acompanhamento + Bebida',
+                    'price' => 39.90,
+                    'oldPrice' => 59.90,
+                    'cashback' => 5,
+                    'category' => 'combos',
+                    'productType' => 'combo',
+                    'isCombo' => true,
+
+                    'comboItems' => [
+                        ['name' => 'Hambúrguer Artesanal'],
+                        [
+                            'name' => 'Acompanhamento',
+                            'options' => [
+                                'type' => 'select',
+                                'choices' => [
+                                    ['name' => 'Batata Frita'],
+                                    ['name' => 'Batata Rústica'],
+                                    ['name' => 'Onion Rings'],
+                                    ['name' => 'Salada'],
+                                ]
+                            ]
+                        ],
+                        [
+                            'name' => 'Bebida',
+                            'options' => [
+                                'type' => 'select',
+                                'choices' => [
+                                    ['name' => 'Coca-Cola'],
+                                    ['name' => 'Guaraná'],
+                                    ['name' => 'Suco Natural'],
+                                    ['name' => 'Água'],
+                                ]
+                            ]
+                        ]
+                    ],
+
+                    'stock' => ['quantity' => 30]
+                ],
+
+                // =========================
+                // 🍧 AÇAÍ
+                // =========================
                 [
                     'name' => 'Açaí Tradicional',
                     'description' => 'Açaí puro da Amazônia, sem xarope, acompanha granola',
                     'price' => 19.90,
+                    'cashback' => 3,
                     'category' => 'acai',
                     'productType' => 'dessert',
+                    'isCombo' => false,
+
                     'customization' => [
                         'sizes' => [
                             ['name' => '300ml', 'price' => 19.90],
@@ -141,29 +264,37 @@ class ProductSeeder extends Seeder
                             ['name' => '700ml', 'price' => 34.90],
                         ],
                         'toppings' => [
-                            ['name' => 'Granola', 'price' => 2],
-                            ['name' => 'Banana', 'price' => 1.5],
-                            ['name' => 'Leite Condensado', 'price' => 2.5],
-                            ['name' => 'Morango', 'price' => 2],
-                            ['name' => 'Paçoca', 'price' => 2],
+                            ['name' => 'Granola', 'price' => 2.00],
+                            ['name' => 'Banana', 'price' => 1.50],
+                            ['name' => 'Leite Condensado', 'price' => 2.50],
+                            ['name' => 'Morango', 'price' => 2.00],
+                            ['name' => 'Paçoca', 'price' => 2.00],
                         ]
-                    ]
+                    ],
+
+                    'stock' => ['quantity' => 100]
                 ],
 
+                // =========================
                 // 🥤 BEBIDAS
+                // =========================
                 [
                     'name' => 'Coca-Cola 2L',
                     'description' => 'Refrigerante gelado',
                     'price' => 12.90,
                     'category' => 'bebidas',
                     'productType' => 'beverage',
+                    'isCombo' => false,
+
                     'customization' => [
                         'sizes' => [
                             ['name' => '350ml', 'price' => 5.90],
                             ['name' => '600ml', 'price' => 8.90],
                             ['name' => '2L', 'price' => 12.90],
                         ]
-                    ]
+                    ],
+
+                    'stock' => ['quantity' => 200]
                 ],
 
                 [
@@ -172,45 +303,46 @@ class ProductSeeder extends Seeder
                     'price' => 9.90,
                     'category' => 'bebidas',
                     'productType' => 'beverage',
-                ],
+                    'isCombo' => false,
 
+                    'stock' => ['quantity' => 200]
+                ],
             ];
 
             foreach ($products as $p) {
 
-                // CATEGORY
                 $category = Category::updateOrCreate(
                     ['slug' => Str::slug($p['category'])],
                     ['name' => $p['category'], 'active' => 1]
                 );
 
-                // PRODUCT
                 $product = Product::create([
                     'name' => $p['name'],
-                    'slug' => $this->uniqueSlug(Product::class, $p['name']),
-                    'description' => $p['description'] ?? null,
+                    'slug' => Str::slug($p['name']),
+                    'description' => $p['description'],
                     'price' => $p['price'],
                     'old_price' => $p['oldPrice'] ?? null,
+                    'cashback' => $p['cashback'] ?? 0,
                     'category_id' => $category->id,
                     'product_type' => $p['productType'],
-                    'is_combo' => $p['isCombo'] ?? false,
+                    'is_combo' => $p['isCombo'],
                     'active' => 1
                 ]);
 
-                // IMAGE
                 ProductImage::create([
                     'product_id' => $product->id,
                     'url' => '/images/default.png'
                 ]);
 
-                // STOCK
                 ProductStock::create([
                     'product_id' => $product->id,
-                    'available' => true,
-                    'quantity' => 50
+                    'quantity' => $p['stock']['quantity'] ?? 50,
+                    'available' => true
                 ]);
 
+                // =========================
                 // CUSTOMIZATION
+                // =========================
                 if (!empty($p['customization'])) {
 
                     foreach ($p['customization'] as $type => $items) {
@@ -218,21 +350,23 @@ class ProductSeeder extends Seeder
                         $group = ProductOptionGroup::create([
                             'product_id' => $product->id,
                             'name' => ucfirst($type),
-                            'type' => in_array($type, ['sizes']) ? 'radio' : 'checkbox',
+                            'type' => 'checkbox',
                             'required' => false
                         ]);
 
                         foreach ($items as $item) {
                             ProductOption::create([
                                 'option_group_id' => $group->id,
-                                'name' => $item['name'] ?? $item,
+                                'name' => $item['name'],
                                 'price' => $item['price'] ?? 0
                             ]);
                         }
                     }
                 }
 
-                // COMBO
+                // =========================
+                // COMBOS
+                // =========================
                 if (!empty($p['comboItems'])) {
 
                     foreach ($p['comboItems'] as $item) {
@@ -267,17 +401,19 @@ class ProductSeeder extends Seeder
                     }
                 }
 
-                // ADDONS (tratado como option group separado)
-                if (!empty($p['addons'])) {
+                // =========================
+                // ADDONS COMBO
+                // =========================
+                if (!empty($p['comboAddons'])) {
 
                     $group = ProductOptionGroup::create([
                         'product_id' => $product->id,
-                        'name' => 'Extras',
+                        'name' => 'Addons',
                         'type' => 'checkbox',
                         'required' => false
                     ]);
 
-                    foreach ($p['addons'] as $addon) {
+                    foreach ($p['comboAddons'] as $addon) {
                         ProductOption::create([
                             'option_group_id' => $group->id,
                             'name' => $addon['name'],
@@ -293,18 +429,5 @@ class ProductSeeder extends Seeder
             DB::rollBack();
             dd($e->getMessage());
         }
-    }
-
-    private function uniqueSlug($model, $text)
-    {
-        $slug = Str::slug($text);
-        $original = $slug;
-        $count = 1;
-
-        while ($model::where('slug', $slug)->exists()) {
-            $slug = $original . '-' . $count++;
-        }
-
-        return $slug;
     }
 }
