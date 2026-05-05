@@ -25,9 +25,8 @@
           <div class="col-md-5 text-center">
             <div class="image">
               <img
-                :src="productImage"
+                :src="product?.images?.[0]?.url || product?.images?.[0] || product?.image"
                 class="img-fluid w-100 rounded-3 mb-2"
-                :alt="product?.name"
               />
             </div>
 
@@ -123,7 +122,7 @@
 
                 <div
                   v-for="(item, index) in product.combo_items"
-                  :key="item.id || index"
+                  :key="index"
                   class="border rounded p-3 mb-3"
                   :class="{ 'bg-light': item.options }"
                 >
@@ -133,7 +132,7 @@
                         {{ item.quantity }}x {{ item.name }}
                         <span v-if="item.required" class="badge bg-primary ms-2">Obrigatório</span>
                       </div>
-                      <small class="text-muted" v-if="item.price !== undefined && item.price !== null">
+                      <small class="text-muted" v-if="item.price !== undefined">
                         {{ item.price > 0 ? `+ R$ ${formatPrice(item.price)}` : 'Incluso no combo' }}
                       </small>
                       <small class="text-muted" v-else>
@@ -242,21 +241,21 @@
               </div>
             </div>
 
-            <!-- SEÇÃO: Addons do Combo (Option Groups do combo) -->
-            <div class="col-md-12" v-if="product?.is_combo && product?.option_groups?.length">
-              <div class="mb-4" v-for="group in product.option_groups" :key="group.id">
+            <!-- SEÇÃO: Addons do Combo -->
+            <div class="col-md-12" v-if="product?.is_combo && product?.combo_addons?.length">
+              <div class="mb-4">
                 <h6 class="fw-bold text-primary text-center mb-4">
-                  {{ group.name }}
+                  Adicionais Extras
                 </h6>
 
                 <div
-                  v-for="addon in group.options"
+                  v-for="addon in product.combo_addons"
                   :key="addon.id"
                   class="d-flex align-items-center justify-content-between border rounded px-3 py-2 mb-2"
                 >
                   <div class="fw-medium">
                     {{ addon.name }}
-                    <small class="text-muted ms-1" v-if="addon.price > 0">
+                    <small class="text-muted ms-1">
                       (+R$ {{ formatPrice(addon.price) }})
                     </small>
                   </div>
@@ -284,7 +283,52 @@
               </div>
             </div>
 
-            <!-- Opção de Tamanhos (grupo do tipo radio) -->
+            <!-- Opções (Sabores/Tamanhos) - apenas para produtos normais -->
+            <div class="col-md-12" v-if="!product?.is_combo && hasOptions">
+              <div
+                v-for="group in optionGroups"
+                :key="group.title"
+                class="mb-4"
+              >
+                <h6 class="fw-bold text-primary text-center mb-4">
+                  {{ group.title }}
+                </h6>
+
+                <div
+                  v-for="item in group.items"
+                  :key="item.id"
+                  class="d-flex align-items-center border gap-1 rounded p-0 mb-2 option-item pe-3"
+                  :class="{ active: isOptionSelected(item) }"
+                  @click="selectOption(item)"
+                >
+                  <img
+                    :src="item.image || product?.images?.[0]?.url || product?.images?.[0]"
+                    class="me-3 cover"
+                    width="105"
+                    height="105"
+                  />
+
+                  <div class="flex-grow-1">
+                    <div class="fw-semibold">
+                      {{ item.name }}
+                    </div>
+                    <small class="text-muted">
+                      {{ item.description }}
+                    </small>
+                    <div v-if="item.price > 0" class="text-primary small fw-bold">
+                      + R$ {{ formatPrice(item.price) }}
+                    </div>
+                  </div>
+
+                  <input
+                    type="radio"
+                    :checked="isOptionSelected(item)"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Opção de Tamanhos -->
             <div class="col-md-12" v-if="!product?.is_combo && hasSizes">
               <div class="mb-4">
                 <h6 class="fw-bold text-primary text-center mb-4">
@@ -292,7 +336,7 @@
                 </h6>
 
                 <div
-                  v-for="size in sizeOptions"
+                  v-for="size in product?.customization?.sizes"
                   :key="size.id"
                   class="d-flex align-items-center border gap-1 rounded p-0 mb-2 option-item pe-3"
                   :class="{ active: selectedSize?.id === size.id }"
@@ -307,6 +351,9 @@
                     </small>
                     <div class="text-primary fw-bold">
                       R$ {{ formatPrice(size.price) }}
+                      <span v-if="size.oldPrice" class="text-muted small ms-2">
+                        <s>R$ {{ formatPrice(size.oldPrice) }}</s>
+                      </span>
                     </div>
                   </div>
 
@@ -319,7 +366,7 @@
               </div>
             </div>
 
-            <!-- Sabores (grupo do tipo checkbox) -->
+            <!-- Sabores -->
             <div class="col-md-12" v-if="!product?.is_combo && hasFlavors">
               <div class="mb-4">
                 <h6 class="fw-bold text-primary text-center mb-4">
@@ -327,7 +374,7 @@
                 </h6>
 
                 <div
-                  v-for="flavor in flavorOptions"
+                  v-for="flavor in product?.customization?.flavors"
                   :key="flavor.id"
                   class="d-flex align-items-center border gap-1 rounded p-0 mb-2 option-item pe-3"
                   :class="{ active: isFlavorSelected(flavor) }"
@@ -336,7 +383,7 @@
                   <div class="flex-grow-1 p-2 p-md-3">
                     <div class="fw-semibold">
                       {{ flavor.name }}
-                      <span v-if="flavor.is_default" class="badge bg-primary ms-2">
+                      <span v-if="flavor.isRecommended" class="badge bg-primary ms-2">
                         Recomendado
                       </span>
                     </div>
@@ -358,19 +405,19 @@
               </div>
             </div>
             
-            <!-- Adicionais (grupos do tipo checkbox para extras) -->
+            <!-- Adicionais -->
             <div class="col-md-12" v-if="!product?.is_combo && hasAditionals">
               <div
                 v-for="group in aditionalGroups"
-                :key="group.id"
+                :key="group.title"
                 class="mb-4"
               >
                 <h6 class="fw-bold text-primary text-center mb-3">
-                  {{ group.name }}
+                  {{ group.title }}
                 </h6>
 
                 <div
-                  v-for="item in group.options"
+                  v-for="item in group.items"
                   :key="item.id"
                   class="d-flex align-items-center justify-content-between border rounded px-3 py-2 mb-2"
                 >
@@ -454,41 +501,22 @@
   const originalAditionalsState = ref({})
 
   // Computed properties
-  const productImage = computed(() => {
-    if (props.product?.images?.[0]?.url) return props.product.images[0].url
-    if (props.product?.path_image) return props.product.path_image
-    if (props.product?.image) return props.product.image
-    return '/images/default.png'
-  })
-
-  // Grupos do tipo radio para tamanhos
-  const sizeOptions = computed(() => {
-    if (!props.product?.option_groups) return []
-    const sizeGroup = props.product.option_groups.find(g => g.type === 'radio')
-    return sizeGroup?.options || []
+  const hasOptions = computed(() => {
+    return props.product?.options?.length > 0 && !props.product?.is_combo
   })
 
   const hasSizes = computed(() => {
-    return sizeOptions.value.length > 0 && !props.product?.is_combo
-  })
-
-  // Grupos do tipo checkbox para sabores
-  const flavorOptions = computed(() => {
-    if (!props.product?.option_groups) return []
-    const flavorGroup = props.product.option_groups.find(g => g.type === 'checkbox' && g.name.toLowerCase().includes('sabor'))
-    return flavorGroup?.options || []
+    return props.product?.customization?.hasSize && props.product?.customization?.sizes?.length > 0 && !props.product?.is_combo
   })
 
   const hasFlavors = computed(() => {
-    return flavorOptions.value.length > 0 && !props.product?.is_combo
+    return props.product?.customization?.hasFlavors && props.product?.customization?.flavors?.length > 0 && !props.product?.is_combo
   })
 
   const hasAditionals = computed(() => {
-    if (!props.product?.option_groups) return false
-    const aditionalGroupsList = props.product.option_groups.filter(g => 
-      g.type === 'checkbox' && !g.name.toLowerCase().includes('sabor')
-    )
-    return aditionalGroupsList.length > 0 && !props.product?.is_combo
+    return ((props.product?.aditionals?.length > 0) || 
+           (props.product?.customization?.hasToppings && props.product?.customization?.toppings?.length > 0)) &&
+           !props.product?.is_combo
   })
 
   const isCombo = computed(() => {
@@ -496,8 +524,9 @@
   })
 
   const maxFlavors = computed(() => {
-    const flavorGroup = props.product?.option_groups?.find(g => g.type === 'checkbox' && g.name.toLowerCase().includes('sabor'))
-    return flavorGroup?.max_selections || 2
+    return props.product?.customization?.maxFlavors || 
+           (props.product?.cuisineType === 'pizza' ? 2 : 
+           (props.product?.cuisineType === 'acai' ? 3 : 0))
   })
 
   const maxFlavorsReached = computed(() => {
@@ -505,24 +534,39 @@
   })
 
   const aditionalGroups = computed(() => {
-    if (!props.product?.option_groups) return []
-    return props.product.option_groups.filter(g => 
-      g.type === 'checkbox' && !g.name.toLowerCase().includes('sabor')
-    )
+    if (props.product?.aditionals?.length > 0) {
+      return props.product.aditionals
+    }
+    
+    if (props.product?.customization?.hasToppings && props.product?.customization?.toppings?.length > 0) {
+      return [{
+        title: 'Adicionais',
+        items: props.product.customization.toppings
+      }]
+    }
+    
+    return []
+  })
+
+  const optionGroups = computed(() => {
+    if (props.product?.options?.length > 0) {
+      return props.product.options
+    }
+    return []
   })
 
   const currentPrice = computed(() => {
     if (selectedSize.value) {
-      return parseFloat(selectedSize.value.price)
+      return selectedSize.value.price
     }
-    return parseFloat(props.product?.price || 0)
+    return props.product?.price || 0
   })
 
   const currentOldPrice = computed(() => {
-    if (props.product?.old_price) {
-      return parseFloat(props.product.old_price)
+    if (selectedSize.value && selectedSize.value.oldPrice) {
+      return selectedSize.value.oldPrice
     }
-    return null
+    return props.product?.old_price || null
   })
 
   const discount = computed(() => {
@@ -537,27 +581,23 @@
     
     if (!isCombo.value) {
       selectedFlavors.value.forEach(flavor => {
-        price += parseFloat(flavor.price || 0)
+        price += flavor.price || 0
       })
       
       Object.entries(aditionalState.value).forEach(([id, quantity]) => {
         const item = findAditionalById(parseInt(id))
         if (item && item.price) {
-          price += parseFloat(item.price) * quantity
+          price += item.price * quantity
         }
       })
     } else {
-      price = parseFloat(props.product?.price || 0)
+      price = props.product?.price || 0
       
       // Adiciona preço dos addons
       Object.entries(comboAddonsState.value).forEach(([id, quantity]) => {
-        let addon = null
-        for (const group of (props.product?.option_groups || [])) {
-          addon = group.options?.find(a => a.id === parseInt(id))
-          if (addon) break
-        }
+        const addon = props.product?.combo_addons?.find(a => a.id === parseInt(id))
         if (addon && addon.price) {
-          price += parseFloat(addon.price) * quantity
+          price += addon.price * quantity
         }
       })
       
@@ -581,19 +621,22 @@
 
   const isEditing = computed(() => {
     if (props.product?.isEditing) return true
+    if (props.product?.originalSelectedOption !== null && 
+        props.product?.originalSelectedOption !== undefined) return true
+    if (props.product?.originalSelectedSize !== null && 
+        props.product?.originalSelectedSize !== undefined) return true
+    if (props.product?.originalSelectedFlavors && 
+        props.product.originalSelectedFlavors.length > 0) return true
     return false
   })
     
   const canSubmit = computed(() => {
-    // Se está editando, sempre pode enviar
     if (isEditing.value) return true
-    
-    // Se é combo, verifica itens obrigatórios
     if (isCombo.value) {
       if (!props.product?.combo_items) return true
       
       for (const item of props.product.combo_items) {
-        if (item.required && item.options && item.options.required) {
+        if (item.options && item.options.required) {
           const selection = comboItemSelections.value[item.id]
           if (!selection) return false
           
@@ -607,36 +650,25 @@
       }
       return true
     }
-    
-    // Para produtos normais
-    // Se não tem nenhuma personalização, pode adicionar direto
-    if (!hasSizes.value && !hasFlavors.value && !hasAditionals.value) {
-      return true
-    }
-    
-    // Se tem tamanhos e nenhum selecionado
-    if (hasSizes.value && !selectedSize.value) {
-      return false
-    }
-    
-    // Se tem sabores e nenhum selecionado
-    if (hasFlavors.value && selectedFlavors.value.length === 0) {
-      return false
-    }
-    
+    if (hasOptions.value && !selectedOption.value) return false
+    if (hasSizes.value && !selectedSize.value) return false
+    if (hasFlavors.value && selectedFlavors.value.length === 0) return false
     return true
   })
 
   // Funções auxiliares
   const findAditionalById = (id) => {
     for (const group of aditionalGroups.value) {
-      const item = group.options?.find(i => i.id === id)
+      const item = group.items.find(i => i.id === id)
       if (item) return item
     }
     return null
   }
 
+  const isOptionSelected = (item) => selectedOption.value === item.id
   const isFlavorSelected = (flavor) => selectedFlavors.value.some(f => f.id === flavor.id)
+
+  const selectOption = (item) => { selectedOption.value = item.id }
   
   const toggleFlavor = (flavor) => {
     const index = selectedFlavors.value.findIndex(f => f.id === flavor.id)
@@ -645,8 +677,6 @@
     } else {
       if (!maxFlavorsReached.value) {
         selectedFlavors.value.push(flavor)
-      } else {
-        toast.warning(`Máximo de ${maxFlavors.value} sabores permitidos!`, { timeout: 2000 })
       }
     }
   }
@@ -655,11 +685,8 @@
   
   const increaseAditional = (item) => {
     const current = aditionalState.value[item.id] || 0
-    const maxStock = item.max_quantity || 99
-    if (current >= maxStock) {
-      toast.warning(`Máximo de ${maxStock} ${item.name} permitido!`, { timeout: 2000 })
-      return
-    }
+    const maxStock = item.stock || 99
+    if (current >= maxStock) return
     aditionalState.value[item.id] = current + 1
   }
   
@@ -682,7 +709,7 @@
   }
 
   const initComboItemSelections = () => {
-    if (!props.product?.is_combo || !props.product?.combo_items) {
+    if (!props.product?.is_combo) {
       return
     }
     
@@ -695,7 +722,7 @@
           selections[item.id] = {
             type: item.options.type,
             selected: defaultChoice?.id || null,
-            choicePrice: defaultChoice?.price ? parseFloat(defaultChoice.price) : 0,
+            choicePrice: defaultChoice?.price || 0,
             choiceName: defaultChoice?.name || ''
           }
         } else if (item.options.type === 'checkbox' || item.options.type === 'multicheckbox') {
@@ -760,7 +787,7 @@
     const choice = item.options?.choices?.find(c => c.id === parseInt(choiceId))
     if (choice && comboItemSelections.value[itemId]) {
       comboItemSelections.value[itemId].selected = choiceId
-      comboItemSelections.value[itemId].choicePrice = choice.price ? parseFloat(choice.price) : 0
+      comboItemSelections.value[itemId].choicePrice = choice.price || 0
       comboItemSelections.value[itemId].choiceName = choice.name
       toast.success(`${item.name}: ${choice.name} selecionado!`, { timeout: 1500 })
     }
@@ -781,18 +808,16 @@
     
     if (isChecked) {
       if (currentTotal < maxSelections) {
-        if (!selections.selected.includes(choiceId)) {
-          selections.selected.push(choiceId)
-        }
+        selections.selected.push(choiceId)
         if (choice.maxPerOption) {
-          selections.quantities[choiceId] = (selections.quantities[choiceId] || 0) + 1
+          selections.quantities[choiceId] = 1
         } else {
           selections.quantities[choiceId] = 1
         }
-        selections.choicePrices[choiceId] = choice.price ? parseFloat(choice.price) : 0
+        selections.choicePrices[choiceId] = choice.price || 0
         toast.success(`${choice.name} adicionado!`, { timeout: 1000 })
       } else {
-        toast.warning(`Máximo de ${maxSelections} itens permitidos!`, { timeout: 3000 })
+        toast.warning(`Máximo de ${maxSelections} itens permitidos! Desmarque algum item para adicionar outro.`, { timeout: 3000 })
       }
     } else {
       const index = selections.selected.indexOf(choiceId)
@@ -821,7 +846,7 @@
     const maxPerOption = choice.maxPerOption || 99
     
     if (currentTotal >= maxSelections) {
-      toast.warning(`Máximo de ${maxSelections} itens atingido!`, { timeout: 3000 })
+      toast.warning(`Máximo de ${maxSelections} itens atingido! Desmarque algum item para adicionar mais.`, { timeout: 3000 })
       return
     }
     
@@ -835,7 +860,7 @@
     }
     
     selections.quantities[choiceId] = currentQty + 1
-    selections.choicePrices[choiceId] = choice.price ? parseFloat(choice.price) : 0
+    selections.choicePrices[choiceId] = (choice.price || 0)
   }
 
   const decreaseChoiceQuantity = (itemId, choiceId) => {
@@ -897,7 +922,7 @@
     const selections = {}
     
     Object.entries(comboItemSelections.value).forEach(([itemId, data]) => {
-      const item = props.product?.combo_items?.find(i => i.id === parseInt(itemId))
+      const item = props.product?.combo_items?.find(i => i.id === itemId)
       if (!item || !data) return
       
       if (data.type === 'select' || data.type === 'radio') {
@@ -907,10 +932,10 @@
             choice: {
               id: choice.id,
               name: choice.name,
-              price: choice.price ? parseFloat(choice.price) : 0
+              price: choice.price || 0
             },
             quantity: 1,
-            price: choice.price ? parseFloat(choice.price) : 0
+            price: choice.price || 0
           }
         } else if (data.choiceName) {
           selections[itemId] = {
@@ -932,10 +957,10 @@
               choice: {
                 id: choice.id,
                 name: choice.name,
-                price: choice.price ? parseFloat(choice.price) : 0
+                price: choice.price || 0
               },
               quantity: qty,
-              price: (choice.price ? parseFloat(choice.price) : 0) * qty
+              price: (choice.price || 0) * qty
             })
           }
         })
@@ -949,11 +974,8 @@
   
   const increaseComboAddon = (addon) => {
     const current = comboAddonsState.value[addon.id] || 0
-    const maxStock = addon.max_quantity || 99
-    if (current >= maxStock) {
-      toast.warning(`Máximo de ${maxStock} ${addon.name} permitido!`, { timeout: 2000 })
-      return
-    }
+    const maxStock = addon.maxQuantity || 99
+    if (current >= maxStock) return
     comboAddonsState.value[addon.id] = current + 1
     toast.success(`${addon.name} adicionado ao combo!`, { timeout: 1500 })
   }
@@ -961,11 +983,7 @@
   const decreaseComboAddon = (id) => {
     const current = comboAddonsState.value[id] || 0
     if (current <= 0) return
-    let addon = null
-    for (const group of (props.product?.option_groups || [])) {
-      addon = group.options?.find(a => a.id === id)
-      if (addon) break
-    }
+    const addon = props.product?.combo_addons?.find(a => a.id === id)
     comboAddonsState.value[id] = current - 1
     if (addon) {
       toast.info(`${addon.name} removido do combo`, { timeout: 1500 })
@@ -976,16 +994,12 @@
     const selectedAddons = []
     Object.entries(comboAddonsState.value).forEach(([id, quantity]) => {
       if (quantity > 0) {
-        let addon = null
-        for (const group of (props.product?.option_groups || [])) {
-          addon = group.options?.find(a => a.id === parseInt(id))
-          if (addon) break
-        }
+        const addon = props.product?.combo_addons?.find(a => a.id === parseInt(id))
         if (addon) {
           selectedAddons.push({
             id: addon.id,
             name: addon.name,
-            price: addon.price ? parseFloat(addon.price) : 0,
+            price: addon.price || 0,
             quantity: quantity
           })
         }
@@ -999,15 +1013,15 @@
       productId: props.product.id,
       name: props.product.name,
       description: props.product.description,
-      basePrice: parseFloat(props.product.price),
+      basePrice: props.product.price,
       finalPrice: finalPrice.value,
       quantity: 1,
       isCombo: true,
       combo_items: props.product.combo_items,
-      option_groups: props.product.option_groups,
+      combo_addons: props.product.combo_addons,
       selectedAddons: selectedAddons,
       itemSelections: itemSelections,
-      image: productImage.value,
+      image: props.product.images?.[0]?.url || props.product.images?.[0] || props.product.image,
       savings: props.product.savings,
       cashback: props.product.cashback || 0
     }
@@ -1015,13 +1029,12 @@
 
   const prepareNormalProductForCart = () => {
     const updatedAditionals = aditionalGroups.value.map(group => ({
-      id: group.id,
-      name: group.name,
-      items: group.options.map(item => ({
+      title: group.title,
+      items: group.items.map(item => ({
         id: item.id,
         name: item.name,
-        price: item.price ? parseFloat(item.price) : 0,
-        max_quantity: item.max_quantity || 99,
+        price: item.price || 0,
+        stock: item.stock || 99,
         quantity: aditionalState.value[item.id] || 0
       }))
     }))
@@ -1031,22 +1044,25 @@
       name: props.product.name,
       description: props.product.description,
       price: finalPrice.value,
-      originalPrice: parseFloat(props.product.price),
+      originalPrice: props.product.price,
       oldPrice: currentOldPrice.value,
-      image: productImage.value,
+      image: props.product.images?.[0]?.url || props.product.images?.[0] || props.product.image,
       cashback: props.product.cashback || 0,
+      selectedOption: selectedOption.value,
       selectedSize: selectedSize.value,
       selectedFlavors: selectedFlavors.value,
+      originalSelectedOption: originalSelectedOption.value,
+      originalSelectedSize: originalSelectedSize.value,
+      originalSelectedFlavors: originalSelectedFlavors.value,
       aditionals: updatedAditionals,
+      customization: props.product.customization,
+      cuisineType: props.product.cuisineType,
       isCombo: false
     }
   }
 
   function addToCart() {
-    if (!props.product) {
-      toast.error('Produto inválido!')
-      return
-    }
+    if (!props.product) return
 
     if (isCombo.value) {
       const comboItem = prepareComboForCart()
@@ -1086,12 +1102,14 @@
   }
 
   const resetState = () => {
+    selectedOption.value = null
     selectedSize.value = null
     selectedFlavors.value = []
     aditionalState.value = {}
     comboAddonsState.value = {}
     comboItemSelections.value = {}
     
+    originalSelectedOption.value = null
     originalSelectedSize.value = null
     originalSelectedFlavors.value = []
     originalAditionalsState.value = {}
@@ -1146,19 +1164,10 @@
           }
           
         } else {
-          // Inicializa o tamanho padrão se existir
-          if (sizeOptions.value.length > 0 && !selectedSize.value) {
-            selectedSize.value = sizeOptions.value[0]
+          if (props.product.selectedOption) {
+            selectedOption.value = props.product.selectedOption
+            originalSelectedOption.value = props.product.selectedOption
           }
-
-          // Inicializa sabores padrão se existir
-          if (flavorOptions.value.length > 0 && selectedFlavors.value.length === 0) {
-            const defaultFlavor = flavorOptions.value.find(f => f.is_default)
-            if (defaultFlavor) {
-              selectedFlavors.value.push(defaultFlavor)
-            }
-          }
-          
           if (props.product.selectedSize) {
             selectedSize.value = props.product.selectedSize
             originalSelectedSize.value = props.product.selectedSize
@@ -1181,6 +1190,15 @@
             })
           }
           
+          if (props.product.customization?.hasToppings && props.product.customization?.toppings) {
+            props.product.customization.toppings.forEach(item => {
+              if (state[item.id] === undefined) {
+                state[item.id] = 0
+                originalState[item.id] = 0
+              }
+            })
+          }
+          
           if (props.product.aditionalsState && Object.keys(props.product.aditionalsState).length > 0) {
             Object.entries(props.product.aditionalsState).forEach(([id, quantity]) => {
               state[parseInt(id)] = quantity
@@ -1191,8 +1209,7 @@
           originalAditionalsState.value = originalState
         }
       }
-    },
-    { immediate: true }
+    }
   )
 
   const close = () => {
@@ -1204,9 +1221,7 @@
 
   const formatPrice = (value) => {
     if (!value && value !== 0) return '0,00'
-    const numValue = typeof value === 'string' ? parseFloat(value) : value
-    if (isNaN(numValue)) return '0,00'
-    return numValue.toFixed(2).replace('.', ',')
+    return Number(value).toFixed(2).replace('.', ',')
   }
 </script>
 
@@ -1234,12 +1249,6 @@
 
 .image {
   max-width: 320px;
-  margin: 0 auto;
-}
-
-.image img {
-  max-height: 200px;
-  object-fit: cover;
 }
 
 .z-in {
@@ -1250,17 +1259,16 @@
   width: 100%;
   margin: 0 auto;
   max-width: 980px;
+  height: auto;
 }
 
 .modal-content {
-  height: auto;
-  max-height: 90vh;
-  overflow-y: auto;
+  height: 600px;
+  overflowY: auto;
 }
 
 .cover {
   object-fit: cover;
-  border-radius: 8px;
 }
 
 .option-item {
@@ -1269,11 +1277,11 @@
 }
 
 .option-item:hover {
-  border-color: #6f42c1;
+  border-color: var(--bg-primary-hover);
 }
 
 .option-item.active {
-  border-color: #6f42c1;
+  border-color: var(--bg-primary-hover);
   background: #f8f0ff;
 }
 
@@ -1287,7 +1295,7 @@
 }
 
 .scroll::-webkit-scrollbar-thumb {
-  background: #6f42c1;
+  background: var(--primary);
   border-radius: 10px;
 }
 
