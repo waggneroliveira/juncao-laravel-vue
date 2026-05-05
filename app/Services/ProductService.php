@@ -17,4 +17,9 @@ class ProductService
     {
         return $this->productRepository->getAllActiveWithRelations();
     }
+
+    public function getHighlights()
+    {
+        return $this->productRepository->getHighlightsWithRelations();
+    }
 }

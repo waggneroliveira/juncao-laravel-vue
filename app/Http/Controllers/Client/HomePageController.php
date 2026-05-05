@@ -35,4 +35,9 @@ class HomePageController extends Controller
         return response()->json($categories);
     }
 
+    public function highlights()
+    {
+        $products = $this->productService->getHighlights();
+        return response()->json($products);
+    }
 }

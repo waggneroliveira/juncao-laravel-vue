@@ -382,7 +382,7 @@ class ProductSeeder extends Seeder
                 // Adiciona imagem padrão
                 ProductImage::create([
                     'product_id' => $product->id,
-                    'url' => '/images/default.png'
+                    'url' => 'images/prod.png'
                 ]);
 
                 // Adiciona stock

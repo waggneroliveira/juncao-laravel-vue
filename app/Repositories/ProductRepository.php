@@ -42,4 +42,19 @@ class ProductRepository
         
         return $this->transformProduct($product);
     }
+
+    public function getHighlightsWithRelations()
+    {
+        $products = Product::with([
+            'category', 
+            'images', 
+            'optionGroups.options', 
+            'comboItems'
+        ])
+        ->where('active', 1)
+        ->where('highlights', 1)
+        ->get();
+
+        return $this->transformProducts($products);
+    }
 }

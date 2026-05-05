@@ -50,6 +50,11 @@ const fetchCategories = async () => {
   categories.value = await res.json()
 }
 
+const fetchHighlights = async () => {
+  const res = await fetch('/api/products/highlights')
+  highlights.value = await res.json()
+}
+
 // Helper para reconstruir seleções a partir de comboDetails
 const rebuildSelectionsFromDetails = (comboItem) => {
   if (!comboItem.comboDetails) return {}
@@ -118,9 +123,7 @@ const handleReorder = (order) => {
 }
 
 // Produtos em destaque para o carrossel
-const highlights = computed(() => {
-  return products.value.filter(p => p.featured === true)
-})
+const highlights = ref([])
 
 // Helper para nomes das categorias
 const getCategoryName = (categoryKey) => {
@@ -284,6 +287,7 @@ watch(() => cart.items, (newItems) => {
 onMounted(() => {
   fetchProducts()
   fetchCategories()
+  fetchHighlights()
 })
 </script>
 

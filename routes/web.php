@@ -63,6 +63,7 @@ Route::get('/', [HomePageController::class, 'index']);
 // Rotas API para produtos e categorias
 Route::get('/api/products', [HomePageController::class, 'products']);
 Route::get('/api/categories', [HomePageController::class, 'categories']);
+Route::get('/api/products/highlights', [HomePageController::class, 'highlights']);
 
 Route::get('contato', [ContactPageController::class, 'index'])
 ->name('contact');
