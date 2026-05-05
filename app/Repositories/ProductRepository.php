@@ -11,7 +11,7 @@ class ProductRepository
         return Product::with([
             'category', 
             'images', 
-            'optionGroups', 
+            'optionGroups.options', 
             'comboItems'
             ])
             ->where('active', 1)
