@@ -14,13 +14,53 @@ class Product extends Model
     use Notifiable, HasFactory, LogsActivity;
     
     protected $fillable = [
-        'title',
-        'path_image',
-        'text',
+        'category_id',
+        'name',
+        'description',
         'price',
+        'old_price',
+        'cashback',
+        'product_type',
+        'cuisine_type',
+        'is_combo',
+        'featured',
+        'order',
+        'tags',
+        'specifications',
+        'path_image',
         'active',
         'sorting'
     ];
+
+    protected $casts = [
+        'tags' => 'array',
+        'specifications' => 'array'
+    ];
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    public function images()
+    {
+        return $this->hasMany(ProductImage::class);
+    }
+
+    public function optionGroups()
+    {
+        return $this->hasMany(ProductOptionGroup::class);
+    }
+
+    public function comboItems()
+    {
+        return $this->hasMany(ComboItem::class);
+    }
+
+    public function stock()
+    {
+        return $this->hasOne(ProductStock::class);
+    }
 
     public function scopeActive($query)
     {
