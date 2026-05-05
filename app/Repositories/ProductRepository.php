@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\Product;
+use App\Models\ProductOptionGroup;
 use App\Traits\ProductTransformer;
 
 class ProductRepository
@@ -14,13 +15,26 @@ class ProductRepository
         $products = Product::with([
             'category', 
             'images', 
-            'optionGroups.options', 
             'comboItems'
         ])
         ->where('active', 1)
         ->get();
         
-        // Transforma os produtos antes de retornar
+        // Carrega os optionGroups para cada produto manualmente
+        foreach ($products as $product) {
+            if ($product->is_combo) {
+                // Busca grupos do produto (addons) + grupos dos comboItems
+                $product->setRelation('optionGroups', ProductOptionGroup::with('options')
+                    ->where(function($query) use ($product) {
+                        $query->where('product_id', $product->id)
+                            ->orWhereIn('combo_item_id', $product->comboItems->pluck('id'));
+                    })
+                    ->get());
+            } else {
+                $product->load('optionGroups.options');
+            }
+        }
+        
         return $this->transformProducts($products);
     }
     
