@@ -12,7 +12,7 @@ class ProductRepository
     
     public function getAllActiveWithRelations()
     {
-        return Product::with([
+        $products = Product::with([
             'category', 
             'images', 
             'optionGroups.options',
@@ -20,13 +20,26 @@ class ProductRepository
             'stock'
         ])
         ->where('active', 1)
-        ->get()
-        ->map(function($product) {
+        ->get();
+        
+        // Carrega opções dos combo items
+        foreach ($products as $product) {
+            if ($product->is_combo && $product->comboItems->count() > 0) {
+                $comboItemIds = $product->comboItems->pluck('id')->toArray();
+                $comboOptionGroups = ProductOptionGroup::with('options')
+                    ->whereIn('combo_item_id', $comboItemIds)
+                    ->get();
+                
+                // Adiciona aos optionGroups do produto
+                $product->setRelation('optionGroups', $product->optionGroups->merge($comboOptionGroups));
+            }
+        }
+        
+        return $products->map(function($product) {
             return $this->transformProduct($product);
         });
     }
     
-    // Se precisar de um produto específico
     public function findActiveWithRelations($id)
     {
         $product = Product::with([
@@ -43,12 +56,22 @@ class ProductRepository
             return null;
         }
         
+        // Carrega opções dos combo items
+        if ($product->is_combo && $product->comboItems->count() > 0) {
+            $comboItemIds = $product->comboItems->pluck('id')->toArray();
+            $comboOptionGroups = ProductOptionGroup::with('options')
+                ->whereIn('combo_item_id', $comboItemIds)
+                ->get();
+            
+            $product->setRelation('optionGroups', $product->optionGroups->merge($comboOptionGroups));
+        }
+        
         return $this->transformProduct($product);
     }
 
     public function getHighlightsWithRelations()
     {
-        return Product::with([
+        $products = Product::with([
             'category', 
             'images', 
             'optionGroups.options', 
@@ -57,8 +80,21 @@ class ProductRepository
         ])
         ->where('active', 1)
         ->where('highlights', 1)
-        ->get()
-        ->map(function($product) {
+        ->get();
+        
+        // Carrega opções dos combo items
+        foreach ($products as $product) {
+            if ($product->is_combo && $product->comboItems->count() > 0) {
+                $comboItemIds = $product->comboItems->pluck('id')->toArray();
+                $comboOptionGroups = ProductOptionGroup::with('options')
+                    ->whereIn('combo_item_id', $comboItemIds)
+                    ->get();
+                
+                $product->setRelation('optionGroups', $product->optionGroups->merge($comboOptionGroups));
+            }
+        }
+        
+        return $products->map(function($product) {
             return $this->transformProduct($product);
         });
     }
