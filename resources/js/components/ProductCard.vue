@@ -15,7 +15,7 @@
           {{ product.cashback }}% cashback
         </span>
 
-        <img :src="product.images?.[0] || product.image" class="card-img-top" @click="handleClick"/>
+        <img :src="getMainImage()" class="card-img-top" @click="handleClick" @error="handleImageError"/>
       </div>
 
       <div class="card-body d-flex flex-column product-info">
@@ -67,6 +67,32 @@
 
   const emit = defineEmits(['open', 'add'])
   const cart = useCartStore()
+
+    // 🔥 FUNÇÃO PARA PEGAR A IMAGEM PRINCIPAL
+  const getMainImage = () => {
+    // Prioridade 1: path_image (capa do produto)
+    if (props.product?.path_image) {
+      return props.product.path_image
+    }
+    
+    // Prioridade 2: primeira imagem do array images
+    if (props.product?.images && props.product.images.length > 0) {
+      return props.product.images[0].url || props.product.images[0]
+    }
+    
+    // Prioridade 3: campo image direto
+    if (props.product?.image) {
+      return props.product.image
+    }
+    
+    // Padrão: placeholder
+    return 'build/admin/images/products/product-1.png'
+  }
+
+  // 🔥 FUNÇÃO PARA TRATAR ERRO DE IMAGEM
+  const handleImageError = (event) => {
+    event.target.src = 'build/admin/images/products/product-1.png'
+  }
 
   // Verifica se é combo
   const is_combo = computed(() => {

@@ -87,7 +87,7 @@
             </span>
 
             <!-- Informações de Estoque -->
-            <div v-if="product?.stock" class="badge bg-info text-white mb-2">
+            <div v-if="product?.stock" class="d-none badge bg-info text-white mb-2">
               <i class="bi bi-box-seam"></i>
               {{ product.stock.quantity }} em estoque
             </div>

@@ -149,11 +149,11 @@ trait ProductTransformer
             'tags' => $product->tags,
             'specifications' => $product->specifications,
             
-            'path_image' => $product->path_image,
+            'path_image' => $product->path_image ? asset('build/admin/images/products/product-1.png') : null,
             'images' => $product->images->map(function($image) {
                 return [
                     'id' => $image->id,
-                    'url' => $image->url
+                    'url' => asset('build/admin/images/products/product-1.png')
                 ];
             }),
             
@@ -245,11 +245,11 @@ trait ProductTransformer
             'tags' => $product->tags,
             'specifications' => $product->specifications,
             
-            'path_image' => $product->path_image,
+            'path_image' => $product->path_image ? asset('build/admin/images/products/product-1.png') : null,
             'images' => $product->images->map(function($image) {
                 return [
                     'id' => $image->id,
-                    'url' => $image->url
+                    'url' => asset('build/admin/images/products/product-1.png')
                 ];
             }),
             
