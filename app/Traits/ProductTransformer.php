@@ -287,31 +287,33 @@ trait ProductTransformer
                 'required' => (bool) $item->required,
                 'price' => $item->price ? (float) $item->price : null,
                 'item_key' => $item->item_key ?? null,
-                'options' => null
+                'options' => null // Se tiver múltiplos, pode ser um array
             ];
             
-            $itemOptions = $product->optionGroups
-                ->where('combo_item_id', $item->id)
-                ->first();
+            // Se tiver múltiplos grupos de opções
+            if ($item->optionGroups->count() > 0) {
+                // Pega o primeiro grupo (ou pode adaptar para múltiplos)
+                $firstGroup = $item->optionGroups->first();
                 
-            if ($itemOptions && $itemOptions->options->count() > 0) {
-                $comboItem['options'] = [
-                    'id' => $itemOptions->id,
-                    'type' => $itemOptions->type,
-                    'title' => $itemOptions->name,
-                    'required' => (bool) $itemOptions->required,
-                    'maxSelections' => $itemOptions->max_selections,
-                    'choices' => $itemOptions->options->map(function($option) {
-                        return [
-                            'id' => $option->id,
-                            'name' => $option->name,
-                            'price' => (float) $option->price,
-                            'description' => $option->description,
-                            'default' => (bool) $option->is_default,
-                            'maxPerOption' => $option->max_quantity
-                        ];
-                    })
-                ];
+                if ($firstGroup && $firstGroup->options->count() > 0) {
+                    $comboItem['options'] = [
+                        'id' => $firstGroup->id,
+                        'type' => $firstGroup->type,
+                        'title' => $firstGroup->name,
+                        'required' => (bool) $firstGroup->required,
+                        'maxSelections' => $firstGroup->max_selections,
+                        'choices' => $firstGroup->options->map(function($option) {
+                            return [
+                                'id' => $option->id,
+                                'name' => $option->name,
+                                'price' => (float) $option->price,
+                                'description' => $option->description,
+                                'default' => (bool) $option->is_default,
+                                'maxPerOption' => $option->max_quantity
+                            ];
+                        })
+                    ];
+                }
             }
             
             $comboItems[] = $comboItem;

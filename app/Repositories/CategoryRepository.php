@@ -7,7 +7,7 @@ use App\Traits\ProductTransformer;
 class CategoryRepository
 {
     use ProductTransformer;
-    
+
     public function getAllActive()
     {
         $categories = Category::active()
@@ -17,17 +17,16 @@ class CategoryRepository
                     $query->where('active', 1)
                         ->orderBy('sorting', 'asc')
                         ->with([
-                            'images',
-                            'category',
-                            'comboItems',
+                            'category', 
+                            'images', 
+                            'stock',
                             'optionGroups.options',
-                            'stock'
+                            'comboItems.optionGroups.options' // CORREÇÃO: comboItems.optionGroups.options
                         ]);
                 }
             ])
             ->get();
         
-        // Transforma os produtos dentro de cada categoria
         return $categories->map(function($category) {
             return [
                 'id' => $category->id,
