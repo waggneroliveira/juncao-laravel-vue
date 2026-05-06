@@ -25,7 +25,7 @@
           <div class="col-md-5 text-center">
             <div class="image">
               <img
-                :src="product?.images?.[0]?.url || product?.images?.[0] || product?.image"
+                :src="product?.images?.[0]?.url || product?.path_image || product?.image"
                 class="img-fluid w-100 rounded-3 mb-2"
               />
             </div>
@@ -37,7 +37,7 @@
             </div>
 
             <!-- BADGES DE INFORMAÇÕES -->
-            <div class="badge d-none bg-warning-subtle text-dark border border-warning-subtle w-100 mb-1">
+            <div v-if="product?.specifications && (product?.specifications?.preparationTime || product?.specifications?.calories || product?.specifications?.serves || product?.specifications?.isVegetarian || product?.specifications?.isVegan || product?.specifications?.isGlutenFree)" class="badge d-block bg-warning-subtle text-dark border border-warning-subtle w-100 mb-1">
               <div class="specifications-badges d-flex justify-content-center align-items-center gap-2 flex-wrap">
                 <small v-if="product?.specifications?.preparationTime" class="badge-spec">
                   <i class="bi bi-clock"></i>
@@ -85,6 +85,12 @@
             <span v-if="product?.cashback && !product?.is_combo" class="badge bg-warning text-dark mb-2">
               {{ product.cashback }}% cashback
             </span>
+
+            <!-- Informações de Estoque -->
+            <div v-if="product?.stock" class="badge bg-info text-white mb-2">
+              <i class="bi bi-box-seam"></i>
+              {{ product.stock.quantity }} em estoque
+            </div>
 
             <h5 class="fw-bold text-primary">{{ product?.name }}</h5>
             <p class="text-muted small">

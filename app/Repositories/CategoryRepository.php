@@ -20,7 +20,8 @@ class CategoryRepository
                             'images',
                             'category',
                             'comboItems',
-                            'optionGroups.options'
+                            'optionGroups.options',
+                            'stock'
                         ]);
                 }
             ])

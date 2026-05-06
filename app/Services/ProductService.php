@@ -22,4 +22,9 @@ class ProductService
     {
         return $this->productRepository->getHighlightsWithRelations();
     }
+
+    public function getById($id)
+    {
+        return $this->productRepository->findActiveWithRelations($id);
+    }
 }

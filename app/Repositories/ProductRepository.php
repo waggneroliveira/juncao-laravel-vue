@@ -12,30 +12,18 @@ class ProductRepository
     
     public function getAllActiveWithRelations()
     {
-        $products = Product::with([
+        return Product::with([
             'category', 
             'images', 
-            'comboItems'
+            'optionGroups.options',
+            'comboItems',
+            'stock'
         ])
         ->where('active', 1)
-        ->get();
-        
-        // Carrega os optionGroups para cada produto manualmente
-        foreach ($products as $product) {
-            if ($product->is_combo) {
-                // Busca grupos do produto (addons) + grupos dos comboItems
-                $product->setRelation('optionGroups', ProductOptionGroup::with('options')
-                    ->where(function($query) use ($product) {
-                        $query->where('product_id', $product->id)
-                            ->orWhereIn('combo_item_id', $product->comboItems->pluck('id'));
-                    })
-                    ->get());
-            } else {
-                $product->load('optionGroups.options');
-            }
-        }
-        
-        return $this->transformProducts($products);
+        ->get()
+        ->map(function($product) {
+            return $this->transformProduct($product);
+        });
     }
     
     // Se precisar de um produto específico
@@ -45,7 +33,8 @@ class ProductRepository
             'category', 
             'images', 
             'optionGroups.options', 
-            'comboItems'
+            'comboItems',
+            'stock'
         ])
         ->where('active', 1)
         ->find($id);
@@ -59,16 +48,18 @@ class ProductRepository
 
     public function getHighlightsWithRelations()
     {
-        $products = Product::with([
+        return Product::with([
             'category', 
             'images', 
             'optionGroups.options', 
-            'comboItems'
+            'comboItems',
+            'stock'
         ])
         ->where('active', 1)
         ->where('highlights', 1)
-        ->get();
-
-        return $this->transformProducts($products);
+        ->get()
+        ->map(function($product) {
+            return $this->transformProduct($product);
+        });
     }
 }

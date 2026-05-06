@@ -149,12 +149,20 @@ trait ProductTransformer
             'tags' => $product->tags,
             'specifications' => $product->specifications,
             
+            'path_image' => $product->path_image,
             'images' => $product->images->map(function($image) {
                 return [
                     'id' => $image->id,
                     'url' => $image->url
                 ];
             }),
+            
+            'stock' => $product->stock ? [
+                'id' => $product->stock->id,
+                'quantity' => (int) $product->stock->quantity,
+                'min_quantity' => (int) $product->stock->min_quantity,
+                'max_quantity' => (int) $product->stock->max_quantity,
+            ] : null,
             
             'category' => $product->category ? [
                 'id' => $product->category->id,
@@ -237,12 +245,20 @@ trait ProductTransformer
             'tags' => $product->tags,
             'specifications' => $product->specifications,
             
+            'path_image' => $product->path_image,
             'images' => $product->images->map(function($image) {
                 return [
                     'id' => $image->id,
                     'url' => $image->url
                 ];
             }),
+            
+            'stock' => $product->stock ? [
+                'id' => $product->stock->id,
+                'quantity' => (int) $product->stock->quantity,
+                'min_quantity' => (int) $product->stock->min_quantity,
+                'max_quantity' => (int) $product->stock->max_quantity,
+            ] : null,
             
             'category' => $product->category ? [
                 'id' => $product->category->id,

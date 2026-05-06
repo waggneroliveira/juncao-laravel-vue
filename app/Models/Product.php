@@ -52,9 +52,7 @@ class Product extends Model
 
     public function optionGroups()
     {
-        // Busca grupos que pertencem diretamente ao produto OU aos comboItems do produto
-        return $this->hasMany(ProductOptionGroup::class, 'product_id')
-            ->orWhereIn('combo_item_id', $this->comboItems->pluck('id'));
+        return $this->hasMany(ProductOptionGroup::class, 'product_id');
     }
 
     public function comboItems()
