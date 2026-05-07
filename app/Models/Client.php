@@ -40,6 +40,16 @@ class Client extends Authenticatable
         return $this->hasMany(Order::class);
     }
 
+    public function addresses()
+    {
+        return $this->hasMany(ClientAddress::class);
+    }
+
+    public function primaryAddress()
+    {
+        return $this->hasOne(ClientAddress::class)->where('primary', true);
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         $activityLogService = new ActivityLogService($this);
