@@ -739,9 +739,9 @@
             localStorage.setItem('selectedAddress', JSON.stringify(data.selectedAddress))
         }
         
-        toast.success(`Bem-vindo(a), ${data.fullName}!`, {
-            timeout: 4000
-        })
+        // toast.success(`Bem-vindo(a), ${data.fullName}!`, {
+        //     timeout: 4000
+        // })
         
         setTimeout(() => {
             updateSelectedAddress()

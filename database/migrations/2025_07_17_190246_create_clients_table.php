@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
-            $table->string('phone', 16);
+            $table->string('phone', 16)->unique();
             $table->boolean('active')->default(0);
             $table->string('password');
             $table->string('path_image')->nullable();

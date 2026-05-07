@@ -76,44 +76,6 @@
             </button>
           </div>
 
-          <!-- ETAPA 2: VALIDAÇÃO DE CEP (quando usuário já existe) -->
-          <div v-show="currentStep === 'cep'" ref="cepSectionRef" class="step-section py-3">
-            <div class="text-center mb-4">
-              <h4 class="fw-semibold text-secondary">Confirme seu CEP</h4>
-              <p class="text-muted small">Digite o CEP cadastrado em sua conta</p>
-            </div>
-
-            <div class="d-flex justify-content-center gap-2 flex-wrap">
-              <input 
-                v-for="(digit, index) in 8" 
-                :key="index"
-                ref="cepInputs"
-                type="text" 
-                maxlength="1" 
-                class="form-control text-center cep-box"
-                v-model="cepDigits[index]"
-                @input="handleCepDigit(index, $event)"
-                @keydown="handleCepKeydown(index, $event)"
-                @paste="handleCepPaste"
-                :disabled="isLoading"
-              >
-            </div>
-            
-            <div v-if="cepError" class="text-center mt-3">
-              <span class="text-danger small">{{ cepError }}</span>
-            </div>
-
-            <div class="d-flex gap-2 mt-4">
-              <button class="btn btn-secondary w-50" @click="backToForm" :disabled="isLoading">
-                Voltar
-              </button>
-              <button class="btn btn-primary w-50" @click="validateCepAndLogin" :disabled="isLoading || !isCepComplete">
-                <span v-if="isLoading">Verificando...</span>
-                <span v-else>Verificar CEP</span>
-              </button>
-            </div>
-          </div>
-
           <!-- ETAPA 3: FORMA DE ENTREGA (usando o modal) -->
           <div v-show="currentStep === 'delivery'" class="step-section text-center py-4">
             <div class="text-center mb-4">
@@ -207,8 +169,9 @@
 
   <!-- Address Modal -->
   <AddressModal 
-    v-model="showAddressModal"
-    @address-selected="handleAddressSelected"
+      v-model="showAddressModal"
+      :registration-mode="!isLoggedIn && !userFound"
+      @address-selected="handleAddressSelected"
   />
 
   <!-- Delivery Method Modal -->
@@ -226,12 +189,13 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, computed } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import { useToast } from 'vue-toastification'
 import AddressModal from './AddressModal.vue'
 import DeliveryMethodModal from './DeliveryMethodModal.vue'
 import PaymentMethodModal from './PaymentMethodModal.vue'
 import { useUserStore } from '@/stores/useUserStore'
+import axios from 'axios'
 
 const toast = useToast()
 const props = defineProps({
@@ -247,16 +211,9 @@ const whatsapp = ref('')
 const fullName = ref('')
 
 // Controle de etapas
-const currentStep = ref('form') // form, cep, delivery, payment
+const currentStep = ref('form') // form, delivery, payment
 const isLoading = ref(false)
-const userFound = ref(false)
 const isLoggedIn = ref(false)
-
-// CEP fields
-const cepDigits = ref(['', '', '', '', '', '', '', ''])
-const cepError = ref('')
-const cepInputs = ref([])
-const expectedCep = ref('')
 
 // Controle do modal de endereços
 const showAddressModal = ref(false)
@@ -270,19 +227,8 @@ const showPaymentMethodModal = ref(false)
 const tempDeliveryMethod = ref(null)
 const tempPaymentMethod = ref('')
 
-// Referências para os elementos do DOM
-const formSectionRef = ref(null)
-const cepSectionRef = ref(null)
-
-// Computed para verificar se CEP está completo
-const isCepComplete = computed(() => {
-  return cepDigits.value.every(digit => digit !== '')
-})
-
-// Função para obter o CEP completo
-const getFullCep = () => {
-  return cepDigits.value.join('')
-}
+// Indica se é modo cadastro (novo usuário)
+const isRegistrationMode = ref(false)
 
 // Fecha o modal e reseta
 const close = () => {
@@ -294,14 +240,11 @@ const close = () => {
 const resetModal = () => {
   setTimeout(() => {
     currentStep.value = 'form'
-    userFound.value = false
     isLoading.value = false
-    cepDigits.value = ['', '', '', '', '', '', '', '']
-    cepError.value = ''
-    expectedCep.value = ''
     pendingAddressSelection.value = false
     tempDeliveryMethod.value = null
     tempPaymentMethod.value = ''
+    isRegistrationMode.value = false
   }, 300)
 }
 
@@ -318,33 +261,88 @@ const formatWhatsapp = () => {
   }
 }
 
-// Busca o CEP do endereço principal nos addresses salvos
-const getPrimaryAddressCep = () => {
-  const addresses = localStorage.getItem('addresses')
-  if (addresses) {
-    const parsedAddresses = JSON.parse(addresses)
-    const primaryAddress = parsedAddresses.find(addr => addr.primary === true)
-    if (primaryAddress && primaryAddress.cep) {
-      return primaryAddress.cep.replace(/\D/g, '')
-    }
+// Verifica se o usuário está logado
+const checkIfLoggedIn = () => {
+  if (userStore.isLogged) {
+    whatsapp.value = userStore.whatsapp || ''
+    fullName.value = userStore.fullName || ''
+    isLoggedIn.value = true
+    return true
   }
-  return null
+  return false
 }
 
-// Simula verificação de usuário no backend
+// Verificação de usuário no backend
 const checkUserExists = async (whatsappNumber, name) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const savedData = localStorage.getItem('userData')
-      if (savedData) {
-        const data = JSON.parse(savedData)
-        const exists = data.whatsapp === whatsappNumber && data.fullName === name
-        resolve(exists)
-      } else {
-        resolve(true)
-      }
-    }, 500)
-  })
+  try {
+    console.log('Verificando usuário:', { whatsapp: whatsappNumber, fullName: name })
+    
+    const response = await axios.post('/identify/check', {
+      whatsapp: whatsappNumber,
+      fullName: name
+    })
+    
+    console.log('Resposta do check:', response.data)
+    
+    if (response.data.success) {
+      return response.data.exists === true
+    }
+    return false
+  } catch (error) {
+    console.error('Erro detalhado ao verificar usuário:', error)
+    console.error('Resposta do erro:', error.response?.data)
+    toast.error('Erro ao verificar dados. Tente novamente.')
+    return false
+  }
+}
+
+// Login do usuário existente
+const loginUser = async (whatsappNumber, name) => {
+  try {
+    console.log('Fazendo login:', { whatsapp: whatsappNumber, fullName: name })
+    
+    const response = await axios.post('/identify/validate-user', {
+      whatsapp: whatsappNumber,
+      fullName: name
+    })
+    
+    console.log('Resposta do login:', response.data)
+    
+    if (response.data.success) {
+      userStore.login({
+        fullName: fullName.value,
+        whatsapp: whatsapp.value,
+        isLogged: true
+      })
+      isLoggedIn.value = true
+      
+      // Dispara evento de login
+      const loginEvent = new CustomEvent('user-login', { 
+        detail: { 
+          fullName: fullName.value, 
+          whatsapp: whatsapp.value,
+          isLogged: true
+        } 
+      })
+      window.dispatchEvent(loginEvent)
+      
+      emit('submit', {
+        whatsapp: whatsapp.value,
+        fullName: fullName.value,
+        isLoggedIn: true
+      })
+      
+      close()
+      toast.success(`Bem-vindo(a) de volta, ${fullName.value}!`)
+      return true
+    }
+    return false
+  } catch (error) {
+    console.error('Erro detalhado ao fazer login:', error)
+    console.error('Resposta do erro:', error.response?.data)
+    toast.error(error.response?.data?.message || 'Erro ao fazer login. Tente novamente.')
+    return false
+  }
 }
 
 // Manipula seleção de endereço vindo do AddressModal
@@ -354,14 +352,13 @@ const handleAddressSelected = async (address) => {
   if (address && pendingAddressSelection.value) {
     pendingAddressSelection.value = false
     
-    // Salva o endereço selecionado
+    // Salva o endereço selecionado no localStorage
     const userData = {
       whatsapp: whatsapp.value,
       fullName: fullName.value,
       selectedAddress: address
     }
     
-    // Se já tinha dados salvos, mescla
     const existingData = localStorage.getItem('userData')
     if (existingData) {
       const parsed = JSON.parse(existingData)
@@ -371,19 +368,8 @@ const handleAddressSelected = async (address) => {
     localStorage.setItem('userData', JSON.stringify(userData))
     
     toast.success('Endereço selecionado com sucesso!', { timeout: 3000 })
+    await submitForm()
   }
-}
-
-// Verifica se o usuário está logado
-const checkIfLoggedIn = () => {
-  if (userStore.isLogged) {
-    whatsapp.value = userStore.whatsapp || ''
-    fullName.value = userStore.fullName || ''
-    isLoggedIn.value = true
-    userFound.value = true
-    return true
-  }
-  return false
 }
 
 // Abre o modal de seleção de entrega
@@ -443,12 +429,17 @@ const getPaymentMethodLabel = (method) => {
 }
 
 // Logout do usuário
-const logout = () => {
+const logout = async () => {
+  try {
+    await axios.get('/logout')
+  } catch (error) {
+    console.error('Erro ao fazer logout:', error)
+  }
+  
   const userName = userStore.fullName
   userStore.logout()
   
   isLoggedIn.value = false
-  userFound.value = false
   whatsapp.value = ''
   fullName.value = ''
   tempPaymentMethod.value = ''
@@ -458,13 +449,15 @@ const logout = () => {
   close()
 }
 
-// Verifica dados iniciais
+// Verifica dados iniciais - Fluxo principal
 const checkAndAdvanceToDelivery = async () => {
+  // Se está logado, faz logout
   if (isLoggedIn.value) {
     logout()
     return
   }
 
+  // Valida campos
   if (!whatsapp.value || !fullName.value) {
     toast.warning('Preencha todos os campos!', { timeout: 3000 })
     return
@@ -473,27 +466,20 @@ const checkAndAdvanceToDelivery = async () => {
   isLoading.value = true
 
   try {
-    userFound.value = await checkUserExists(whatsapp.value, fullName.value)
+    // Limpa o número do WhatsApp (remove formatação)
+    const cleanWhatsapp = whatsapp.value.replace(/\D/g, '')
+    
+    // Verifica se o usuário existe no banco
+    const userExists = await checkUserExists(cleanWhatsapp, fullName.value)
 
-    if (userFound.value) {
-      expectedCep.value = getPrimaryAddressCep()
-      
-      if (expectedCep.value) {
-        currentStep.value = 'cep'
-        await nextTick()
-        cepDigits.value = ['', '', '', '', '', '', '', '']
-        cepError.value = ''
-        if (cepInputs.value[0]) {
-          cepInputs.value[0].focus()
-        }
-        toast.info('Digite o CEP de validação', { timeout: 3000 })
-      } else {
-        // Usuário existente mas sem CEP, vai direto para entrega
-        currentStep.value = 'delivery'
-      }
+    if (userExists) {
+      // USUÁRIO EXISTE: Faz login e finaliza (não vai para seleção)
+      await loginUser(cleanWhatsapp, fullName.value)
     } else {
-      // Novo usuário, vai para entrega
+      // USUÁRIO NÃO EXISTE: Vai para seleção de entrega/pagamento
+      isRegistrationMode.value = true // Ativa modo cadastro
       currentStep.value = 'delivery'
+      toast.info('Complete seu cadastro selecionando as opções abaixo', { timeout: 3000 })
     }
   } catch (error) {
     console.error('Erro ao verificar usuário:', error)
@@ -506,109 +492,42 @@ const checkAndAdvanceToDelivery = async () => {
 // Voltar para o formulário inicial
 const backToForm = () => {
   currentStep.value = 'form'
-  cepDigits.value = ['', '', '', '', '', '', '', '']
-  cepError.value = ''
   tempDeliveryMethod.value = null
   tempPaymentMethod.value = ''
+  isRegistrationMode.value = false
 }
 
-// Valida o CEP digitado e faz login
-const validateCepAndLogin = () => {
-  const typedCep = getFullCep()
-  
-  if (typedCep === expectedCep.value) {
-    cepError.value = ''
-    const data = {
-      whatsapp: whatsapp.value,
-      fullName: fullName.value
-    }
-    
-    userStore.login(data)
-    isLoggedIn.value = true
-    
-    // Avança para entrega
-    currentStep.value = 'delivery'
-  } else {
-    cepError.value = 'CEP não encontrado! Verifique o CEP cadastrado.'
-    toast.error(cepError.value, { timeout: 3000 })
-    cepDigits.value = ['', '', '', '', '', '', '', '']
-    if (cepInputs.value[0]) {
-      cepInputs.value[0].focus()
-    }
-  }
-}
-
-// Manipula a digitação do CEP (auto-tab)
-const handleCepDigit = (index, event) => {
-  const value = event.target.value.replace(/\D/g, '')
-  
-  if (value.length > 0) {
-    cepDigits.value[index] = value.charAt(0)
-    
-    if (index < 7 && cepDigits.value[index] !== '') {
-      if (cepInputs.value[index + 1]) {
-        cepInputs.value[index + 1].focus()
-      }
-    }
-  } else {
-    cepDigits.value[index] = ''
-  }
-}
-
-// Manipula tecla backspace para voltar
-const handleCepKeydown = (index, event) => {
-  if (event.key === 'Backspace') {
-    if (cepDigits.value[index] === '' && index > 0) {
-      if (cepInputs.value[index - 1]) {
-        cepInputs.value[index - 1].focus()
-      }
-    } else if (cepDigits.value[index] !== '') {
-      cepDigits.value[index] = ''
-      event.preventDefault()
-    }
-  }
-}
-
-// Manipula colagem de CEP completo
-const handleCepPaste = (event) => {
-  event.preventDefault()
-  const pastedText = event.clipboardData.getData('text').replace(/\D/g, '')
-  const digits = pastedText.split('').slice(0, 8)
-  
-  digits.forEach((digit, idx) => {
-    if (idx < 8) {
-      cepDigits.value[idx] = digit
-    }
-  })
-  
-  const nextEmptyIndex = cepDigits.value.findIndex(d => d === '')
-  if (nextEmptyIndex !== -1 && cepInputs.value[nextEmptyIndex]) {
-    cepInputs.value[nextEmptyIndex].focus()
-  } else if (cepInputs.value[7]) {
-    cepInputs.value[7].focus()
-  }
-}
-
-// Submissão final do formulário
+// Submissão final do formulário (apenas para NOVOS usuários)
 const submitForm = async () => {
   if (!tempPaymentMethod.value) {
-    toast.warning('Selecione uma forma de pagamento!', { timeout: 3000 })
+    toast.warning('Selecione uma forma de pagamento!')
     return
   }
 
   if (!tempDeliveryMethod.value) {
-    toast.warning('Selecione uma forma de entrega!', { timeout: 3000 })
+    toast.warning('Selecione uma forma de entrega!')
     return
   }
 
   isLoading.value = true
 
-  const userData = localStorage.getItem('userData')
+  // Tenta buscar endereço do localStorage (modo cadastro)
   let selectedAddress = null
   
-  if (userData) {
-    const parsed = JSON.parse(userData)
-    selectedAddress = parsed.selectedAddress
+  const storedAddresses = localStorage.getItem('addresses')
+  if (storedAddresses) {
+    const addresses = JSON.parse(storedAddresses)
+    // Pega o endereço principal ou o primeiro
+    selectedAddress = addresses.find(a => a.primary === true) || addresses[0]
+  }
+  
+  // Se não encontrou no localStorage, tenta no userData (fallback)
+  if (!selectedAddress) {
+    const userData = localStorage.getItem('userData')
+    if (userData) {
+      const parsed = JSON.parse(userData)
+      selectedAddress = parsed.selectedAddress
+    }
   }
 
   // Para delivery, verifica se tem endereço
@@ -619,38 +538,70 @@ const submitForm = async () => {
     return
   }
 
+  const cleanWhatsapp = whatsapp.value.replace(/\D/g, '')
+  
   const data = {
-    whatsapp: whatsapp.value,
+    whatsapp: cleanWhatsapp,
     fullName: fullName.value,
+    email: '',
     deliveryMethod: tempDeliveryMethod.value,
     paymentMethod: tempPaymentMethod.value,
-    selectedAddress: selectedAddress,
-    completedAt: new Date().toISOString()
+    selectedAddress: selectedAddress
   }
 
   try {
-    userStore.login(data)
-    isLoggedIn.value = true
+    console.log('Registrando novo usuário:', data)
     
-    // toast.success(`Pedido finalizado com sucesso, ${fullName.value}!`, { timeout: 4000 })
+    // Registra novo usuário
+    const response = await axios.post('/identify/register', data)
     
-    const loginEvent = new CustomEvent('user-login', { 
-      detail: { 
-        fullName: fullName.value, 
+    console.log('Resposta do registro:', response.data)
+    
+    if (response.data.success) {
+      userStore.login({
+        fullName: fullName.value,
         whatsapp: whatsapp.value,
         isLogged: true,
         deliveryMethod: tempDeliveryMethod.value,
         paymentMethod: tempPaymentMethod.value,
-        selectedAddress: selectedAddress
-      } 
-    })
-    window.dispatchEvent(loginEvent)
-    
-    emit('submit', data)
-    close()
+        selectedAddress: selectedAddress,
+        id: response.data.client?.id
+      })
+      isLoggedIn.value = true
+      
+      // Limpa os dados temporários do localStorage após cadastro
+      localStorage.removeItem('addresses')
+      localStorage.removeItem('userData')
+      
+      const loginEvent = new CustomEvent('user-login', { 
+        detail: { 
+          fullName: fullName.value, 
+          whatsapp: whatsapp.value,
+          isLogged: true,
+          deliveryMethod: tempDeliveryMethod.value,
+          paymentMethod: tempPaymentMethod.value,
+          selectedAddress: selectedAddress
+        } 
+      })
+      window.dispatchEvent(loginEvent)
+      
+      emit('submit', data)
+      close()
+      toast.success(`Cadastro realizado com sucesso! Bem-vindo(a), ${fullName.value}!`)
+    } else {
+      toast.error(response.data.message || 'Erro ao cadastrar. Tente novamente.')
+    }
   } catch (error) {
-    console.error('Erro ao salvar dados:', error)
-    toast.error('Erro ao finalizar. Tente novamente.', { timeout: 3000 })
+    console.error('Erro detalhado ao finalizar cadastro:', error)
+    console.error('Resposta do erro:', error.response?.data)
+    if (error.response?.data?.errors) {
+      const errors = error.response.data.errors
+      Object.values(errors).forEach(err => {
+        toast.error(err[0])
+      })
+    } else {
+      toast.error(error.response?.data?.message || 'Erro ao finalizar cadastro. Tente novamente.')
+    }
   } finally {
     isLoading.value = false
   }
@@ -660,20 +611,16 @@ const submitForm = async () => {
 watch(() => props.modelValue, async (open) => {
   if (open) {
     currentStep.value = 'form'
-    cepDigits.value = ['', '', '', '', '', '', '', '']
-    cepError.value = ''
-    expectedCep.value = ''
     pendingAddressSelection.value = false
     tempDeliveryMethod.value = null
     tempPaymentMethod.value = ''
+    isRegistrationMode.value = false
     
-    const loggedIn = checkIfLoggedIn()
+    checkIfLoggedIn()
     
-    if (!loggedIn) {
+    if (!isLoggedIn.value) {
       fullName.value = ''
       whatsapp.value = ''
-      userFound.value = false
-      isLoggedIn.value = false
     }
   }
 })
@@ -681,12 +628,10 @@ watch(() => props.modelValue, async (open) => {
 watch(() => props.modelValue, async (open) => {
   if (open) {
     await nextTick()
-    // Força o foco no primeiro input
     const firstInput = document.querySelector('.identify-modal input')
     if (firstInput) {
       firstInput.focus()
     }
-    // Garante que o modal está visível
     document.body.style.overflow = 'hidden'
   } else {
     document.body.style.overflow = ''

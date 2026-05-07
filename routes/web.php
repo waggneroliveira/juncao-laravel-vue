@@ -1,64 +1,61 @@
 <?php
 
-use Inertia\Inertia;
-use App\Models\Contact;
-use App\Models\Announcement;
-use App\Models\BlogCategory;
-use Illuminate\Support\Facades\View;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\AuthClientController;
+use App\Http\Controllers\Auth\PasswordEmailClientController;
+use App\Http\Controllers\Auth\ResetPasswordClientController;
+use App\Http\Controllers\Client\BlogPageController;
+use App\Http\Controllers\Client\ClientAuthController;
+use App\Http\Controllers\Client\ContactPageController;
+use App\Http\Controllers\Client\HomePageController;
+use App\Http\Controllers\Client\NoticiesPageController;
+use App\Http\Controllers\ClientAddressController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\FormIndexController;
-use App\Http\Middleware\AuthClientMiddleware;
 use App\Http\Controllers\NewsletterController;
-use App\Http\Controllers\Auth\AuthClientController;
-use App\Http\Controllers\Client\BlogPageController;
-use App\Http\Controllers\Client\HomePageController;
-use App\Http\Controllers\Client\ContactPageController;
-use App\Http\Controllers\Client\NoticiesPageController;
-use App\Http\Controllers\Auth\PasswordEmailClientController;
-use App\Http\Controllers\Auth\ResetPasswordClientController;
+use App\Http\Middleware\AuthClientMiddleware;
+use App\Models\Announcement;
+use App\Models\BlogCategory;
+use App\Models\Contact;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\View;
+use Inertia\Inertia;
 
 require __DIR__ . '/dashboard.php';
 
+// Rotas públicas
 Route::get('/', function () {
     return redirect()->route('index');
 });
 
-Route::post('login.do', [AuthClientController::class, 'authenticate'])
-->name('client.user.authenticate');
+// Rotas de autenticação
+Route::post('login.do', [AuthClientController::class, 'authenticate'])->name('client.user.authenticate');
 
-// Rota para processar o formulário "Esqueci a senha"
-Route::post('/password/email', [PasswordEmailClientController::class, 'passwordEmail'])
-->name('client.password.email');
-
-Route::get('/email-enviado-com-sucesso', [PasswordEmailClientController::class, 'showSuccess'])
-->name('send-success-client');
-
-// Rota para processar a redefinição de senha
-Route::post('/password/reset', [ResetPasswordClientController::class, 'processPasswordReset'])
-->name('client-password.update');
-
-// Rota para exibir o formulário de redefinição de senha
-Route::get('password/reset/{token}', [ResetPasswordClientController::class, 'showResetForm'])
-->name('client.password.reset');
-
-
+// Rotas de recuperação de senha
+Route::post('/password/email', [PasswordEmailClientController::class, 'passwordEmail'])->name('client.password.email');
+Route::get('/email-enviado-com-sucesso', [PasswordEmailClientController::class, 'showSuccess'])->name('send-success-client');
+Route::post('/password/reset', [ResetPasswordClientController::class, 'processPasswordReset'])->name('client-password.update');
+Route::get('password/reset/{token}', [ResetPasswordClientController::class, 'showResetForm'])->name('client.password.reset');
 Route::get('/senha-alterada-com-sucesso', function () {
     return view('emails.password-success-client-reset');
 })->name('client-success-reset-password');
 
-
-Route::middleware([AuthClientMiddleware::class])->group(function () {
-    Route::put('/client/update', [ClientController::class, 'update'])->name('client.update');
-
-    Route::post('/client/comments', [CommentController::class, 'store'])
-    ->name('blog.comment');
-
-    Route::get('logout', [AuthClientController::class, 'logout'])->name('client.user.logout');
+// Rotas públicas
+Route::prefix('identify')->group(function () {
+    Route::post('/check', [AuthClientController::class, 'checkUser']);
+    Route::post('/register', [AuthClientController::class, 'identifyRegister']);
+    Route::post('/validate-user', [AuthClientController::class, 'validateUser']);
 });
-Route::get('/', [HomePageController::class, 'index']);
 
+// Rotas autenticadas
+Route::middleware([AuthClientMiddleware::class])->group(function () {
+    Route::post('/authenticate', [AuthClientController::class, 'identifyAuthenticate']);
+    Route::get('logout', [AuthClientController::class, 'logout'])->name('client.user.logout');
+    Route::get('/client/data', [AuthClientController::class, 'getClientData'])->name('client.data');
+});
+
+// Rotas públicas da home
+Route::get('/index', [HomePageController::class, 'index'])->name('index');
 
 // Rotas API para produtos e categorias
 Route::get('/api/products', [HomePageController::class, 'products']);
@@ -67,7 +64,15 @@ Route::get('/api/products/highlights', [HomePageController::class, 'highlights']
 
 // Rotas API para Pedidos (autenticação necessária)
 Route::middleware('auth:client')->group(function () {
-    // Carrinho - Cálculos
+    // Endereços do cliente
+    Route::prefix('client')->group(function () {
+        Route::get('/addresses', [ClientAddressController::class, 'index']);
+        Route::post('/addresses', [ClientAddressController::class, 'store']);
+        Route::put('/addresses/{id}', [ClientAddressController::class, 'update']);
+        Route::delete('/addresses/{id}', [ClientAddressController::class, 'destroy']);
+        Route::put('/addresses/{id}/primary', [ClientAddressController::class, 'setPrimary']);
+    });
+
     Route::post('/api/cart/calculate', function (\Illuminate\Http\Request $request, \App\Services\CartCalculationService $service) {
         try {
             $validated = $request->validate([
@@ -89,36 +94,14 @@ Route::middleware('auth:client')->group(function () {
         }
     });
 
-    // Pedidos CRUD
     Route::apiResource('api/orders', \App\Http\Controllers\OrderController::class);
     Route::post('/api/orders/{id}/reorder', [\App\Http\Controllers\OrderController::class, 'reorder']);
-    
-    // Cupons - Validação
     Route::post('/api/coupons/validate', [\App\Http\Controllers\CouponController::class, 'validate']);
+
+    // Auth
+    Route::post('/authenticate', [AuthClientController::class, 'identifyAuthenticate']);
+    Route::get('/logout', [AuthClientController::class, 'logout']);
+    Route::get('/client/data', [AuthClientController::class, 'getClientData']);
 });
 
-// Rotas API para Cupons (admin apenas - implement sua lógica de admin)
 Route::apiResource('api/coupons', \App\Http\Controllers\CouponController::class);
-
-Route::get('contato', [ContactPageController::class, 'index'])
-->name('contact');
-
-Route::post('send-newsletter', [NewsletterController::class, 'store'])->name('send-newsletter');
-
-Route::post('cliente/cadastro', [ClientController::class, 'store'])->name('register-client');
-
-
-
-View::composer('client.core.client', function ($view) {
-    $blogCategories = BlogCategory::whereHas('blogs')
-    ->active()
-    ->sorting()
-    ->limit(6)
-    ->get();
-    $announcements = Announcement::active()->sorting()->get();
-    $contact = Contact::first();
-
-    return $view->with('blogCategories', $blogCategories)
-    ->with('announcements', $announcements)
-    ->with('contact', $contact);
-});

@@ -7,43 +7,325 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 
 class AuthClientController extends Controller
 {
-    public function authenticate(Request $request)
+    /**
+     * Verifica se o usuário existe pelo WhatsApp e Nome
+     */
+    public function checkUser(Request $request)
     {
-        $credentials = $request->only('email', 'password');
-        $credentials['active'] = 1;
+        try {
+            $validator = Validator::make($request->all(), [
+                'whatsapp' => 'required|string',
+                'fullName' => 'required|string'
+            ]);
 
-        // Tenta autenticar
-        if (!Auth::guard('client')->attempt($credentials)) {
-            $client = Client::where('email', $request->email)->first();
-
-            if (!$client || !$client->active) {
-                return back()->withErrors([
-                    'email' => 'E-mail inválido ou usuário inativo.',
-                ])->withInput();
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dados inválidos',
+                    'errors' => $validator->errors()
+                ], 422);
             }
 
-            if (!Hash::check($request->password, $client->password)) {
-                return back()->withErrors([
-                    'password' => 'Senha inválida.',
-                ])->withInput();
+            // Limpa o WhatsApp enviado (remove formatação)
+            $whatsappEnviado = preg_replace('/\D/', '', $request->whatsapp);
+            $fullName = trim($request->fullName);
+
+            \Log::info('CheckUser - Buscando cliente:', [
+                'whatsapp_limpo' => $whatsappEnviado,
+                'nome' => $fullName
+            ]);
+
+            // Busca todos os clientes ativos
+            $clients = Client::where('active', 1)->get();
+            
+            $client = null;
+            
+            // Percorre os clientes para comparar o telefone sem formatação
+            foreach ($clients as $c) {
+                $telefoneBanco = preg_replace('/\D/', '', $c->phone);
+                if ($telefoneBanco === $whatsappEnviado) {
+                    $client = $c;
+                    break;
+                }
             }
+
+            if ($client) {
+                \Log::info('Cliente encontrado:', [
+                    'id' => $client->id,
+                    'name' => $client->name,
+                    'phone' => $client->phone,
+                    'phone_limpo' => preg_replace('/\D/', '', $client->phone)
+                ]);
+
+                // Verifica se o nome é igual (case insensitive)
+                if (strtolower(trim($client->name)) === strtolower($fullName)) {
+                    return response()->json([
+                        'success' => true,
+                        'exists' => true,
+                        'client_id' => $client->id
+                    ]);
+                } else {
+                    \Log::warning('Nome não confere:', [
+                        'nome_banco' => $client->name,
+                        'nome_enviado' => $fullName
+                    ]);
+                    
+                    return response()->json([
+                        'success' => true,
+                        'exists' => false,
+                        'message' => 'Telefone encontrado mas nome não confere'
+                    ]);
+                }
+            }
+
+            \Log::info('Nenhum cliente encontrado para o WhatsApp: ' . $whatsappEnviado);
+
+            return response()->json([
+                'success' => true,
+                'exists' => false
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Erro no checkUser: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao verificar usuário',
+                'error' => $e->getMessage()
+            ], 500);
         }
+    }
 
-        $client = Auth::guard('client')->user();
+    /**
+     * Valida e autentica usuário existente
+     */
+    public function validateUser(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'whatsapp' => 'required|string',
+                'fullName' => 'required|string'
+            ]);
 
-        session()->flash('success', 'Login realizado com sucesso!');
-        return redirect()->back();
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dados inválidos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $whatsappEnviado = preg_replace('/\D/', '', $request->whatsapp);
+            $fullName = trim($request->fullName);
+
+            \Log::info('ValidateUser - Buscando cliente:', [
+                'whatsapp_limpo' => $whatsappEnviado,
+                'nome' => $fullName
+            ]);
+
+            // Busca todos os clientes ativos
+            $clients = Client::where('active', 1)->get();
+            
+            $client = null;
+            
+            // Percorre os clientes para comparar o telefone sem formatação
+            foreach ($clients as $c) {
+                $telefoneBanco = preg_replace('/\D/', '', $c->phone);
+                if ($telefoneBanco === $whatsappEnviado) {
+                    $client = $c;
+                    break;
+                }
+            }
+
+            if (!$client) {
+                \Log::warning('Cliente não encontrado para validação');
+                return response()->json([
+                    'success' => false,
+                    'exists' => false,
+                    'message' => 'Cliente não encontrado'
+                ]);
+            }
+
+            // Verifica o nome
+            if (strtolower(trim($client->name)) !== strtolower($fullName)) {
+                return response()->json([
+                    'success' => false,
+                    'exists' => false,
+                    'message' => 'Nome não confere com o cadastro'
+                ]);
+            }
+
+            // Autentica o cliente
+            Auth::guard('client')->login($client);
+            $request->session()->regenerate();
+
+            \Log::info('Cliente autenticado com sucesso:', ['id' => $client->id]);
+
+            return response()->json([
+                'success' => true,
+                'exists' => true,
+                'message' => 'Autenticação realizada com sucesso',
+                'client' => [
+                    'id' => $client->id,
+                    'name' => $client->name,
+                    'email' => $client->email,
+                    'whatsapp' => $client->phone,
+                    'isLogged' => true
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Erro no validateUser: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao autenticar usuário',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Registro de novo cliente (salva sem formatação)
+     */
+    public function identifyRegister(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'whatsapp' => 'required|string|unique:clients,phone',
+                'fullName' => 'required|string|min:3',
+                'email' => 'nullable|email|unique:clients,email',
+                'deliveryMethod' => 'required|array',
+                'deliveryMethod.value' => 'required|in:delivery,takeout',
+                'paymentMethod' => 'required|in:card,pix,cash',
+                'selectedAddress' => 'nullable|array'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dados inválidos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $whatsapp = preg_replace('/\D/', '', $request->whatsapp);
+            
+            // Cria o cliente
+            $client = Client::create([
+                'name' => $request->fullName,
+                'email' => $request->email ?? $whatsapp . '@temp.com',
+                'phone' => $whatsapp,
+                'password' => Hash::make(substr($whatsapp, -6)),
+                'active' => 1
+            ]);
+
+            // 🔥 SALVA O ENDEREÇO SE FOR DELIVERY E TIVER ENDEREÇO
+            if ($request->deliveryMethod['value'] === 'delivery' && $request->has('selectedAddress') && $request->selectedAddress) {
+                $address = $request->selectedAddress;
+                
+                \App\Models\ClientAddress::create([
+                    'client_id' => $client->id,
+                    'nickname' => $address['nickname'] ?? 'Principal',
+                    'cep' => preg_replace('/\D/', '', $address['cep']),
+                    'street' => $address['street'],
+                    'number' => $address['number'],
+                    'complement' => $address['complement'] ?? null,
+                    'neighborhood' => $address['neighborhood'],
+                    'city' => $address['city'],
+                    'state' => $address['state'],
+                    'reference' => $address['reference'] ?? null,
+                    'instructions' => $address['instructions'] ?? null,
+                    'primary' => 1,
+                    'active' => 1
+                ]);
+            }
+
+            \Log::info('Novo cliente registrado:', ['id' => $client->id, 'phone' => $client->phone]);
+
+            // Autentica o cliente
+            Auth::guard('client')->login($client);
+            $request->session()->regenerate();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cliente registrado com sucesso',
+                'client' => [
+                    'id' => $client->id,
+                    'name' => $client->name,
+                    'whatsapp' => $client->phone,
+                    'isLogged' => true
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Erro no identifyRegister: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao registrar cliente: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Formata número de telefone para o padrão (XX) XXXXX-XXXX
+     */
+    private function formatPhoneNumber($phone)
+    {
+        $phone = preg_replace('/\D/', '', $phone);
+        
+        if (strlen($phone) === 11) {
+            return '(' . substr($phone, 0, 2) . ') ' . substr($phone, 2, 5) . '-' . substr($phone, 7, 4);
+        } elseif (strlen($phone) === 10) {
+            return '(' . substr($phone, 0, 2) . ') ' . substr($phone, 2, 4) . '-' . substr($phone, 6, 4);
+        }
+        
+        return $phone;
     }
 
     public function logout(Request $request)
     {
         Auth::guard('client')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
-        session()->flash('success', 'Logout realizado com sucesso!');
-        return redirect()->back();
+        return response()->json([
+            'success' => true,
+            'message' => 'Logout realizado com sucesso'
+        ]);
     }
 
+    public function getClientData(Request $request)
+    {
+        try {
+            $client = Auth::guard('client')->user();
+            
+            if (!$client) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cliente não autenticado'
+                ], 401);
+            }
+
+            return response()->json([
+                'success' => true,
+                'client' => [
+                    'id' => $client->id,
+                    'name' => $client->name,
+                    'email' => $client->email,
+                    'phone' => $client->phone,
+                    'active' => $client->active,
+                    'created_at' => $client->created_at
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao buscar dados do cliente'
+            ], 500);
+        }
+    }
 }
