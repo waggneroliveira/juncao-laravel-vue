@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('nickname');              // Apelido (Casa, Trabalho...)
             $table->string('cep', 9);                // CEP (formato 00000-000)
             $table->string('street');                // Rua
-            $table->string('number', 20);            // Número
+            $table->string('number', 20)->nullable();            // Número
             $table->string('complement')->nullable(); // Complemento (Apto, Bloco...)
             $table->string('neighborhood');          // Bairro
             $table->string('city');                  // Cidade

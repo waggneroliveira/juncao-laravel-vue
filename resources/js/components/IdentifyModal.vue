@@ -170,7 +170,7 @@
   <!-- Address Modal -->
   <AddressModal 
       v-model="showAddressModal"
-      :registration-mode="!isLoggedIn && !userFound"
+      :registration-mode="isRegistrationMode"
       @address-selected="handleAddressSelected"
   />
 
@@ -519,6 +519,7 @@ const submitForm = async () => {
   if (storedAddresses) {
     const addresses = JSON.parse(storedAddresses)
     selectedAddress = addresses.find(a => a.primary === true) || addresses[0]
+    console.log('📦 Endereço encontrado no localStorage:', selectedAddress)
   }
   
   if (!selectedAddress) {
@@ -526,10 +527,12 @@ const submitForm = async () => {
     if (userData) {
       const parsed = JSON.parse(userData)
       selectedAddress = parsed.selectedAddress
+      console.log('📦 Endereço encontrado no userData:', selectedAddress)
     }
   }
 
   if (tempDeliveryMethod.value.value === 'delivery' && !selectedAddress) {
+    console.log('⚠️ Nenhum endereço encontrado, abrindo modal')
     pendingAddressSelection.value = true
     showAddressModal.value = true
     isLoading.value = false
@@ -555,6 +558,11 @@ const submitForm = async () => {
     console.log('Resposta do registro:', response.data)
     
     if (response.data.success) {
+      // 🔥 SALVA O ENDEREÇO NO USERSTORE PRIMEIRO
+      userStore.selectedAddress = selectedAddress
+      userStore.deliveryMethod = tempDeliveryMethod.value
+      userStore.paymentMethod = tempPaymentMethod.value
+      
       userStore.login({
         fullName: fullName.value,
         whatsapp: whatsapp.value,
@@ -564,13 +572,24 @@ const submitForm = async () => {
         selectedAddress: selectedAddress,
         id: response.data.client?.id
       })
+      
       isLoggedIn.value = true
+      
+      console.log('✅ userStore.selectedAddress após login:', userStore.selectedAddress)
       
       localStorage.removeItem('addresses')
       localStorage.removeItem('userData')
       
-      // Dispara evento para atualizar endereço no Cart
+      // 🔥 FORÇA ATUALIZAÇÃO IMEDIATA NO CART
       window.dispatchEvent(new CustomEvent('addresses-updated'))
+      window.dispatchEvent(new CustomEvent('user-data-updated', { 
+        detail: { 
+          selectedAddress: selectedAddress,
+          deliveryMethod: tempDeliveryMethod.value,
+          paymentMethod: tempPaymentMethod.value,
+          isLogged: true
+        } 
+      }))
       
       const loginEvent = new CustomEvent('user-login', { 
         detail: { 
@@ -634,6 +653,11 @@ watch(() => props.modelValue, async (open) => {
   } else {
     document.body.style.overflow = ''
   }
+})
+
+// 🔥 LOG PARA MONITORAR isRegistrationMode
+watch(() => isRegistrationMode.value, (newVal) => {
+  console.log('🔵🔵🔵 isRegistrationMode mudou para:', newVal)
 })
 </script>
 

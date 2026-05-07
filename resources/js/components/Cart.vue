@@ -132,7 +132,8 @@
             </div>
 
             <!-- Payment info -->
-            <div v-if="userStore.isLogged" class="d-flex align-items-center justify-content-between mb-3 rounded my-2">
+            <div v-if="userStore.isLogged" class="d-flex align-items-center justify-content-between mb-3 rounded my-2"
+            :key="'payment-section-' + forceUpdate">
                 <div
                     class="contorno p-2 d-flex align-items-start justify-content-between rounded-3 w-100"
                     :class="{ 'not-address': !selectedPaymentMethod }"
@@ -773,7 +774,6 @@ const handleUserDataUpdated = (event) => {
 }
 
 // ========== WATCHERS FORTES ==========
-
 // Watch para selectedAddress do userStore
 watch(() => userStore.selectedAddress, (newAddress, oldAddress) => {
     console.log('🔴 WATCH FORTE: userStore.selectedAddress mudou')
@@ -985,25 +985,27 @@ onMounted(() => {
     console.log('🟢 onMounted - userStore.selectedAddress:', userStore.selectedAddress)
     
     if (userStore.isLogged) {
-        if (userStore.selectedAddress) {
-            selectedAddress.value = userStore.selectedAddress
-            localStorage.setItem('selectedAddressId', userStore.selectedAddress.id.toString())
-            localStorage.setItem('selectedAddress', JSON.stringify(userStore.selectedAddress))
-        }
-        if (userStore.deliveryMethod) {
-            selectedDeliveryMethod.value = userStore.deliveryMethod
-            localStorage.setItem('selectedDeliveryMethod', JSON.stringify(userStore.deliveryMethod))
-        }
-        if (userStore.paymentMethod) {
-            selectedPaymentMethod.value = userStore.paymentMethod
-            localStorage.setItem('selectedPaymentMethod', userStore.paymentMethod)
-        }
-        
-        loadSavedAddress()
-        loadSavedDeliveryMethod()
-        loadSavedPaymentMethod()
-        
-        forceUpdate.value++
+        userStore.fetchUserFromBackend().then(() => {
+            if (userStore.selectedAddress) {
+                selectedAddress.value = userStore.selectedAddress
+                localStorage.setItem('selectedAddressId', userStore.selectedAddress.id.toString())
+                localStorage.setItem('selectedAddress', JSON.stringify(userStore.selectedAddress))
+            }
+            if (userStore.deliveryMethod) {
+                selectedDeliveryMethod.value = userStore.deliveryMethod
+                localStorage.setItem('selectedDeliveryMethod', JSON.stringify(userStore.deliveryMethod))
+            }
+            if (userStore.paymentMethod) {
+                selectedPaymentMethod.value = userStore.paymentMethod
+                localStorage.setItem('selectedPaymentMethod', userStore.paymentMethod)
+            }
+            
+            loadSavedAddress()
+            loadSavedDeliveryMethod()
+            loadSavedPaymentMethod()
+            
+            forceUpdate.value++
+        })
     }
     
     checkAddressChanges()
@@ -1013,9 +1015,15 @@ onMounted(() => {
     window.addEventListener('addresses-updated', handleCustomAddressUpdate)
     window.addEventListener('user-data-updated', handleUserDataUpdated)
     window.addEventListener('user-login', (event) => {
-        console.log('Evento user-login recebido:', event.detail)
+        console.log('Evento user-login recebido no Cart:', event.detail)
         if (event.detail) {
             userStore.login(event.detail)
+            
+            if (event.detail.selectedAddress) {
+                selectedAddress.value = event.detail.selectedAddress
+                localStorage.setItem('selectedAddressId', event.detail.selectedAddress.id.toString())
+                localStorage.setItem('selectedAddress', JSON.stringify(event.detail.selectedAddress))
+            }
             if (event.detail.deliveryMethod) {
                 selectedDeliveryMethod.value = event.detail.deliveryMethod
                 localStorage.setItem('selectedDeliveryMethod', JSON.stringify(event.detail.deliveryMethod))
@@ -1024,18 +1032,18 @@ onMounted(() => {
                 selectedPaymentMethod.value = event.detail.paymentMethod
                 localStorage.setItem('selectedPaymentMethod', event.detail.paymentMethod)
             }
-            if (event.detail.selectedAddress) {
-                selectedAddress.value = event.detail.selectedAddress
-                localStorage.setItem('selectedAddressId', event.detail.selectedAddress.id.toString())
-                localStorage.setItem('selectedAddress', JSON.stringify(event.detail.selectedAddress))
-            }
+            
             forceUpdate.value++
+            
             setTimeout(() => {
-                updateSelectedAddress()
-                loadSavedDeliveryMethod()
-                loadSavedPaymentMethod()
                 forceUpdate.value++
+                console.log('Forçando atualização do Cart após delay')
             }, 100)
+            
+            setTimeout(() => {
+                forceUpdate.value++
+                console.log('Forçando segunda atualização')
+            }, 500)
         }
     })
 })

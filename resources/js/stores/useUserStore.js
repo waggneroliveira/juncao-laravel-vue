@@ -65,7 +65,7 @@ export const useUserStore = defineStore('user', {
   },
 
   actions: {
-    // Login do usuário
+    // Login do usuário - SEM chamar fetchUserFromBackend para não sobrescrever o endereço
     login(userData) {
       console.log('🟡 login chamado com:', userData)
       
@@ -79,6 +79,7 @@ export const useUserStore = defineStore('user', {
         this.selectedAddress = userData.selectedAddress
         localStorage.setItem('selectedAddressId', userData.selectedAddress.id.toString())
         localStorage.setItem('selectedAddress', JSON.stringify(userData.selectedAddress))
+        console.log('📦 Endereço salvo no login:', userData.selectedAddress)
       }
       
       if (userData.deliveryMethod) {
@@ -102,11 +103,10 @@ export const useUserStore = defineStore('user', {
         paymentMethod: this.paymentMethod
       })
       
-      // Busca dados completos do backend
-      this.fetchUserFromBackend()
+      // 🔥 NÃO chama fetchUserFromBackend aqui para não sobrescrever o endereço recém-salvo
     },
 
-    // Buscar dados completos do usuário no backend
+    // Buscar dados completos do usuário no backend (apenas para recarregar dados)
     async fetchUserFromBackend() {
       if (!this.id) return null
       
@@ -125,19 +125,30 @@ export const useUserStore = defineStore('user', {
           console.log('✅ Dados do cliente carregados:', response.data.client)
         }
         
-        // Busca endereços do backend
-        const addressesResponse = await axios.get('/client/addresses')
-        if (addressesResponse.data.success && addressesResponse.data.addresses.length > 0) {
-          const primaryAddress = addressesResponse.data.addresses.find(a => a.primary === true) || addressesResponse.data.addresses[0]
-          this.selectedAddress = primaryAddress
-          localStorage.setItem('selectedAddressId', primaryAddress.id.toString())
-          localStorage.setItem('selectedAddress', JSON.stringify(primaryAddress))
-          console.log('✅ Endereço carregado do backend:', primaryAddress)
+        // 🔥 Só busca endereços do backend se NÃO tiver endereço no localStorage
+        const localAddresses = localStorage.getItem('addresses')
+        const hasLocalAddress = localAddresses && JSON.parse(localAddresses).length > 0
+        
+        if (!hasLocalAddress) {
+          // Busca endereços do backend apenas se não tiver no localStorage
+          const addressesResponse = await axios.get('/client/addresses')
+          if (addressesResponse.data.success && addressesResponse.data.addresses.length > 0) {
+            const primaryAddress = addressesResponse.data.addresses.find(a => a.primary === true) || addressesResponse.data.addresses[0]
+            
+            // Só atualiza se for diferente do atual
+            if (JSON.stringify(this.selectedAddress) !== JSON.stringify(primaryAddress)) {
+              this.selectedAddress = primaryAddress
+              localStorage.setItem('selectedAddressId', primaryAddress.id.toString())
+              localStorage.setItem('selectedAddress', JSON.stringify(primaryAddress))
+              console.log('✅ Endereço carregado do backend:', primaryAddress)
+            }
+          }
+        } else {
+          console.log('📦 Endereço já existe no localStorage, mantendo:', this.selectedAddress)
         }
         
         this.saveToStorage()
         
-        // Dispara evento para atualizar o Cart
         window.dispatchEvent(new CustomEvent('user-data-updated', { 
           detail: { 
             selectedAddress: this.selectedAddress,
@@ -274,11 +285,13 @@ export const useUserStore = defineStore('user', {
           console.log('📦 Usuário carregado do storage:', {
             id: this.id,
             fullName: this.fullName,
-            selectedAddress: this.selectedAddress
+            selectedAddress: this.selectedAddress,
+            deliveryMethod: this.deliveryMethod,
+            paymentMethod: this.paymentMethod
           })
           
-          // Busca dados atualizados do backend
-          this.fetchUserFromBackend()
+          // Busca dados atualizados do backend apenas se necessário
+          // this.fetchUserFromBackend() - chamar apenas quando precisar recarregar dados
         } catch (error) {
           console.error('Erro ao carregar usuário:', error)
           this.logout()
