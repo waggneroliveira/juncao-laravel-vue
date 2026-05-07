@@ -40,30 +40,30 @@ Route::get('/senha-alterada-com-sucesso', function () {
     return view('emails.password-success-client-reset');
 })->name('client-success-reset-password');
 
-// Rotas públicas
+// Rotas públicas do Identify
 Route::prefix('identify')->group(function () {
     Route::post('/check', [AuthClientController::class, 'checkUser']);
     Route::post('/register', [AuthClientController::class, 'identifyRegister']);
     Route::post('/validate-user', [AuthClientController::class, 'validateUser']);
 });
 
-// Rotas autenticadas
+// Rotas autenticadas com AuthClientMiddleware (apenas logout e authenticate)
 Route::middleware([AuthClientMiddleware::class])->group(function () {
     Route::post('/authenticate', [AuthClientController::class, 'identifyAuthenticate']);
     Route::get('logout', [AuthClientController::class, 'logout'])->name('client.user.logout');
-    Route::get('/client/data', [AuthClientController::class, 'getClientData'])->name('client.data');
 });
 
 // Rotas públicas da home
 Route::get('/index', [HomePageController::class, 'index'])->name('index');
 
-// Rotas API para produtos e categorias
+// Rotas API para produtos e categorias (públicas)
 Route::get('/api/products', [HomePageController::class, 'products']);
 Route::get('/api/categories', [HomePageController::class, 'categories']);
 Route::get('/api/products/highlights', [HomePageController::class, 'highlights']);
 
-// Rotas API para Pedidos (autenticação necessária)
+// Rotas API para Pedidos e Cliente (autenticação necessária com guard client)
 Route::middleware('auth:client')->group(function () {
+    
     // Endereços do cliente
     Route::prefix('client')->group(function () {
         Route::get('/addresses', [ClientAddressController::class, 'index']);
@@ -72,7 +72,11 @@ Route::middleware('auth:client')->group(function () {
         Route::delete('/addresses/{id}', [ClientAddressController::class, 'destroy']);
         Route::put('/addresses/{id}/primary', [ClientAddressController::class, 'setPrimary']);
     });
-
+    
+    // Dados do cliente autenticado
+    Route::get('/client/data', [AuthClientController::class, 'getClientData']);
+    
+    // Cálculo do carrinho
     Route::post('/api/cart/calculate', function (\Illuminate\Http\Request $request, \App\Services\CartCalculationService $service) {
         try {
             $validated = $request->validate([
@@ -93,15 +97,14 @@ Route::middleware('auth:client')->group(function () {
             ], 422);
         }
     });
-
+    
+    // Rotas de pedidos
     Route::apiResource('api/orders', \App\Http\Controllers\OrderController::class);
     Route::post('/api/orders/{id}/reorder', [\App\Http\Controllers\OrderController::class, 'reorder']);
+    
+    // Rotas de cupons
     Route::post('/api/coupons/validate', [\App\Http\Controllers\CouponController::class, 'validate']);
-
-    // Auth
-    Route::post('/authenticate', [AuthClientController::class, 'identifyAuthenticate']);
-    Route::get('/logout', [AuthClientController::class, 'logout']);
-    Route::get('/client/data', [AuthClientController::class, 'getClientData']);
 });
 
+// Rotas de cupons (públicas para consulta)
 Route::apiResource('api/coupons', \App\Http\Controllers\CouponController::class);

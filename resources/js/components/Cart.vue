@@ -39,7 +39,8 @@
             </div>
 
             <!-- Address info - Só mostra se estiver logado -->
-            <div v-if="userStore.isLogged" class="d-flex align-items-center justify-content-between mb-3 rounded my-2">
+            <div v-if="userStore.isLogged" class="d-flex align-items-center justify-content-between mb-3 rounded my-2"
+            :key="'address-section-' + forceUpdate">
                 <div
                     class="contorno p-2 d-flex align-items-start justify-content-between rounded-3 w-100"
                     :class="{ 'not-address': !selectedDeliveryMethod || (selectedDeliveryMethod?.value === 'delivery' && !selectedAddress) }"
@@ -401,157 +402,126 @@
 </template>
 
 <script setup>
-    import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
-    import { useToast } from 'vue-toastification'
-    import IdentifyModal from './IdentifyModal.vue'
-    import ProductModal from './ProductModal.vue'
-    import AddressModal from './AddressModal.vue'
-    import DeliveryMethodModal from './DeliveryMethodModal.vue'
-    import PaymentMethodModal from './PaymentMethodModal.vue'
-    import { useCartStore } from '@/stores/useCartStore'
-    import { useUserStore } from '@/stores/useUserStore'
+import { ref, onMounted, computed, onUnmounted, watch, nextTick } from 'vue'
+import { useToast } from 'vue-toastification'
+import IdentifyModal from './IdentifyModal.vue'
+import ProductModal from './ProductModal.vue'
+import AddressModal from './AddressModal.vue'
+import DeliveryMethodModal from './DeliveryMethodModal.vue'
+import PaymentMethodModal from './PaymentMethodModal.vue'
+import { useCartStore } from '@/stores/useCartStore'
+import { useUserStore } from '@/stores/useUserStore'
 
-    const toast = useToast()
-    const cart = useCartStore()
-    const userStore = useUserStore()
-    const showModal = ref(false)
-    const showAddressModal = ref(false)
-    const showDeliveryMethodModal = ref(false)
-    const showPaymentMethodModal = ref(false)
-    const selectedAddress = ref(null)
-    const selectedDeliveryMethod = ref(null)
-    const selectedPaymentMethod = ref('')
+const toast = useToast()
+const cart = useCartStore()
+const userStore = useUserStore()
+const showModal = ref(false)
+const showAddressModal = ref(false)
+const showDeliveryMethodModal = ref(false)
+const showPaymentMethodModal = ref(false)
+const selectedAddress = ref(null)
+const selectedDeliveryMethod = ref(null)
+const selectedPaymentMethod = ref('')
 
-    // Product modal
-    const showProductModal = ref(false)
-    const selectedProduct = ref(null)
+// Product modal
+const showProductModal = ref(false)
+const selectedProduct = ref(null)
 
-    // Função para obter o nome do item do combo
-    const getComboItemName = (item, itemId) => {
-        if (!item.comboItems) return itemId
-        const comboItem = item.comboItems.find(i => i.id === itemId)
-        return comboItem ? comboItem.name : itemId
+// Force update
+const forceUpdate = ref(0)
+
+// Funções auxiliares
+const getComboItemName = (item, itemId) => {
+    if (!item.comboItems) return itemId
+    const comboItem = item.comboItems.find(i => i.id === itemId)
+    return comboItem ? comboItem.name : itemId
+}
+
+const getDeliveryMethodText = () => {
+    if (!selectedDeliveryMethod.value) return 'Selecione uma forma de entrega'
+    if (selectedDeliveryMethod.value.value === 'delivery') {
+        return `Entrega em domicílio • ${selectedDeliveryMethod.value.timeEstimate}`
+    } else if (selectedDeliveryMethod.value.value === 'pickup') {
+        return `Retirada na loja • ${selectedDeliveryMethod.value.timeEstimate}`
+    } else if (selectedDeliveryMethod.value.value === 'local') {
+        return `Consumo no local`
+    }
+    return selectedDeliveryMethod.value.label
+}
+
+const getPaymentMethodText = () => {
+    const labels = {
+        card: 'Cartão de Crédito/Débito',
+        pix: 'PIX',
+        cash: 'Dinheiro'
+    }
+    return labels[selectedPaymentMethod.value] || selectedPaymentMethod.value
+}
+
+const getPaymentMethodDescription = () => {
+    if (!selectedPaymentMethod.value) return 'Selecione uma forma de pagamento'
+    const descriptions = {
+        card: 'Pagamento com cartão (débito ou crédito)',
+        pix: 'Pagamento via PIX',
+        cash: 'Pagamento em dinheiro'
+    }
+    return descriptions[selectedPaymentMethod.value] || ''
+}
+
+const openDeliveryMethodModal = () => {
+    if (!userStore.isLogged) {
+        toast.warning('Você precisa se identificar primeiro!', { timeout: 3000 })
+        return
+    }
+    showDeliveryMethodModal.value = true
+}
+
+const openPaymentMethodModal = () => {
+    if (!userStore.isLogged) {
+        toast.warning('Você precisa se identificar primeiro!', { timeout: 3000 })
+        return
+    }
+    showPaymentMethodModal.value = true
+}
+
+const handleDeliveryMethodSelected = (method) => {
+    selectedDeliveryMethod.value = method
+    if (method.value === 'delivery' && !selectedAddress.value) {
+        setTimeout(() => openAddressModal(), 300)
+    }
+    localStorage.setItem('selectedDeliveryMethod', JSON.stringify(method))
+    userStore.setDeliveryMethod(method)
+    toast.info(`Forma de entrega selecionada: ${method.label}`, { timeout: 3000 })
+}
+
+const handlePaymentMethodSelected = (method) => {
+    selectedPaymentMethod.value = method
+    localStorage.setItem('selectedPaymentMethod', method)
+    userStore.setPaymentMethod(method)
+    toast.info(`Forma de pagamento selecionada: ${getPaymentMethodText()}`, { timeout: 3000 })
+}
+
+const updateSelectedAddress = () => {
+    if (!userStore.isLogged) {
+        selectedAddress.value = null
+        return
     }
 
-    // Função para obter o texto do método de entrega
-    const getDeliveryMethodText = () => {
-        if (!selectedDeliveryMethod.value) return 'Selecione uma forma de entrega'
-        
-        if (selectedDeliveryMethod.value.value === 'delivery') {
-            return `Entrega em domicílio • ${selectedDeliveryMethod.value.timeEstimate}`
-        } else if (selectedDeliveryMethod.value.value === 'pickup') {
-            return `Retirada na loja • ${selectedDeliveryMethod.value.timeEstimate}`
-        }else if (selectedDeliveryMethod.value.value === 'local') {
-            return `Consumo no local`
-        }
-        return selectedDeliveryMethod.value.label
+    const addressesJson = localStorage.getItem('addresses')
+    if (!addressesJson) {
+        selectedAddress.value = null
+        localStorage.removeItem('selectedAddress')
+        return
     }
-
-    // Função para obter o texto do método de pagamento
-    const getPaymentMethodText = () => {
-        const labels = {
-            card: 'Cartão de Crédito/Débito',
-            pix: 'PIX',
-            cash: 'Dinheiro'
-        }
-        return labels[selectedPaymentMethod.value] || selectedPaymentMethod.value
-    }
-
-    // Função para obter a descrição do método de pagamento
-    const getPaymentMethodDescription = () => {
-        if (!selectedPaymentMethod.value) return 'Selecione uma forma de pagamento'
-        
-        const descriptions = {
-            card: 'Pagamento com cartão (débito ou crédito)',
-            pix: 'Pagamento via PIX',
-            cash: 'Pagamento em dinheiro'
-        }
-        return descriptions[selectedPaymentMethod.value] || ''
-    }
-
-    // Função para abrir modal de seleção de entrega
-    const openDeliveryMethodModal = () => {
-        if (!userStore.isLogged) {
-            toast.warning('Você precisa se identificar primeiro!', {
-                timeout: 3000
-            })
-            return
-        }
-        showDeliveryMethodModal.value = true
-    }
-
-    // Função para abrir modal de seleção de pagamento
-    const openPaymentMethodModal = () => {
-        if (!userStore.isLogged) {
-            toast.warning('Você precisa se identificar primeiro!', {
-                timeout: 3000
-            })
-            return
-        }
-        showPaymentMethodModal.value = true
-    }
-
-    // Função para lidar com a seleção do método de entrega
-    const handleDeliveryMethodSelected = (method) => {
-        selectedDeliveryMethod.value = method
-        
-        if (method.value === 'delivery' && !selectedAddress.value) {
-            setTimeout(() => {
-                openAddressModal()
-            }, 300)
-        }
-        
-        localStorage.setItem('selectedDeliveryMethod', JSON.stringify(method))
-        
-        toast.info(`Forma de entrega selecionada: ${method.label}`, {
-            timeout: 3000
-        })
-    }
-
-    // Função para lidar com a seleção do método de pagamento
-    const handlePaymentMethodSelected = (method) => {
-        selectedPaymentMethod.value = method
-        localStorage.setItem('selectedPaymentMethod', method)
-        
-        toast.info(`Forma de pagamento selecionada: ${getPaymentMethodText()}`, {
-            timeout: 3000
-        })
-    }
-
-    // Função para atualizar o endereço selecionado
-    const updateSelectedAddress = () => {
-        if (!userStore.isLogged) {
-            selectedAddress.value = null
-            return
-        }
-
-        const addressesJson = localStorage.getItem('addresses')
-        if (!addressesJson) {
-            selectedAddress.value = null
-            localStorage.removeItem('selectedAddress')
-            return
-        }
-        
-        const addresses = JSON.parse(addressesJson)
-        const savedSelectedId = localStorage.getItem('selectedAddressId')
-        
-        if (savedSelectedId) {
-            const foundAddress = addresses.find(addr => addr.id === parseInt(savedSelectedId))
-            if (foundAddress) {
-                selectedAddress.value = foundAddress
-                localStorage.setItem('selectedAddress', JSON.stringify(foundAddress))
-            } else {
-                const primaryAddress = addresses.find(addr => addr.primary === true)
-                if (primaryAddress) {
-                    selectedAddress.value = primaryAddress
-                    localStorage.setItem('selectedAddressId', primaryAddress.id.toString())
-                    localStorage.setItem('selectedAddress', JSON.stringify(primaryAddress))
-                } else {
-                    selectedAddress.value = null
-                    localStorage.removeItem('selectedAddress')
-                    localStorage.removeItem('selectedAddressId')
-                }
-            }
+    
+    const addresses = JSON.parse(addressesJson)
+    const savedSelectedId = localStorage.getItem('selectedAddressId')
+    
+    if (savedSelectedId) {
+        const foundAddress = addresses.find(addr => addr.id === parseInt(savedSelectedId))
+        if (foundAddress) {
+            selectedAddress.value = foundAddress
+            localStorage.setItem('selectedAddress', JSON.stringify(foundAddress))
         } else {
             const primaryAddress = addresses.find(addr => addr.primary === true)
             if (primaryAddress) {
@@ -561,76 +531,96 @@
             } else {
                 selectedAddress.value = null
                 localStorage.removeItem('selectedAddress')
+                localStorage.removeItem('selectedAddressId')
             }
         }
-    }
-
-    // Carregar método de entrega salvo
-    const loadSavedDeliveryMethod = () => {
-        const savedMethod = localStorage.getItem('selectedDeliveryMethod')
-        if (savedMethod) {
-            try {
-                selectedDeliveryMethod.value = JSON.parse(savedMethod)
-            } catch (e) {
-                console.error('Erro ao carregar método de entrega:', e)
-            }
-        }
-    }
-
-    // Carregar método de pagamento salvo
-    const loadSavedPaymentMethod = () => {
-        const savedPayment = localStorage.getItem('selectedPaymentMethod')
-        if (savedPayment) {
-            selectedPaymentMethod.value = savedPayment
-        }
-    }
-
-    const loadSavedAddress = () => {
-        updateSelectedAddress()
-    }
-
-    const openAddressModal = () => {
-        if (!userStore.isLogged) {
-            toast.warning('Você precisa se identificar primeiro!', {
-                timeout: 3000
-            })
-            return
-        }
-        showAddressModal.value = true
-    }
-
-    const handleAddressSelected = (address) => {
-        if (address) {
-            selectedAddress.value = address
-            localStorage.setItem('selectedAddressId', address.id.toString())
-            localStorage.setItem('selectedAddress', JSON.stringify(address))
+    } else {
+        const primaryAddress = addresses.find(addr => addr.primary === true)
+        if (primaryAddress) {
+            selectedAddress.value = primaryAddress
+            localStorage.setItem('selectedAddressId', primaryAddress.id.toString())
+            localStorage.setItem('selectedAddress', JSON.stringify(primaryAddress))
         } else {
             selectedAddress.value = null
-            localStorage.removeItem('selectedAddressId')
-            localStorage.removeItem('selectedAddress')
         }
     }
-
-    const formatAddress = (address) => {
-        if (!address) return ''
-        const parts = []
-        if (address.street) parts.push(address.street)
-        if (address.number) parts.push(address.number)
-        if (address.complement) parts.push(address.complement)
-        if (address.neighborhood) parts.push(address.neighborhood)
-        if (address.city && address.state) parts.push(`${address.city} - ${address.state}`)
-        if (address.cep) parts.push(address.cep)
-        return parts.join(', ')
+    
+    if (userStore.setSelectedAddress && selectedAddress.value) {
+        userStore.setSelectedAddress(selectedAddress.value)
     }
+}
 
-    // Função corrigida para abrir o modal de produto com todas as informações do combo
-    const openProductModal = (item) => {
+const loadSavedDeliveryMethod = () => {
+    const savedMethod = localStorage.getItem('selectedDeliveryMethod')
+    if (savedMethod) {
+        try {
+            selectedDeliveryMethod.value = JSON.parse(savedMethod)
+        } catch (e) {
+            console.error('Erro ao carregar método de entrega:', e)
+        }
+    }
+}
+
+const loadSavedPaymentMethod = () => {
+    const savedPayment = localStorage.getItem('selectedPaymentMethod')
+    if (savedPayment) {
+        selectedPaymentMethod.value = savedPayment
+    }
+}
+
+const openAddressModal = () => {
+    if (!userStore.isLogged) {
+        toast.warning('Você precisa se identificar primeiro!', { timeout: 3000 })
+        return
+    }
+    
+    const addressesJson = localStorage.getItem('addresses')
+    if (addressesJson) {
+        const addresses = JSON.parse(addressesJson)
+        const savedSelectedId = localStorage.getItem('selectedAddressId')
+        if (savedSelectedId) {
+            const foundAddress = addresses.find(addr => addr.id === parseInt(savedSelectedId))
+            if (foundAddress) {
+                selectedAddress.value = foundAddress
+            }
+        }
+    }
+    
+    showAddressModal.value = true
+}
+
+const handleAddressSelected = (address) => {
+    if (address) {
+        selectedAddress.value = address
+        localStorage.setItem('selectedAddressId', address.id.toString())
+        localStorage.setItem('selectedAddress', JSON.stringify(address))
+        userStore.setSelectedAddress(address)
+    } else {
+        selectedAddress.value = null
+        localStorage.removeItem('selectedAddressId')
+        localStorage.removeItem('selectedAddress')
+        userStore.setSelectedAddress(null)
+    }
+    forceUpdate.value++
+}
+
+const formatAddress = (address) => {
+    if (!address) return ''
+    const parts = []
+    if (address.street) parts.push(address.street)
+    if (address.number) parts.push(address.number)
+    if (address.complement) parts.push(address.complement)
+    if (address.neighborhood) parts.push(address.neighborhood)
+    if (address.city && address.state) parts.push(`${address.city} - ${address.state}`)
+    if (address.cep) parts.push(address.cep)
+    return parts.join(', ')
+}
+
+const openProductModal = (item) => {
     console.log('Abrindo modal para edição - item completo:', JSON.parse(JSON.stringify(item)))
     
-    // ⭐ IMPORTANTE: O cartItemId DEVE ser o ID do item no carrinho
-    const cartItemId = item.id // O id do item no carrinho (ID único gerado pela store)
+    const cartItemId = item.id
     
-    // Busca o produto original
     let originalProduct = null
     if (typeof window !== 'undefined' && window.products) {
         originalProduct = window.products.find(p => p.id === item.productId || p.id === item.originalProductId)
@@ -643,20 +633,19 @@
     let mappedAddons = {}
     
     if (isComboItem && item.itemSelections) {
-        // ... mapeamento das seleções (igual ao que você já tem)
+        Object.entries(item.itemSelections).forEach(([itemId, selection]) => {
+            mappedSelections[itemId] = selection
+        })
     }
     
     if (isComboItem && item.selectedAddons) {
         item.selectedAddons.forEach(addon => {
-        mappedAddons[addon.id] = addon.quantity
+            mappedAddons[addon.id] = addon.quantity
         })
     }
     
     const productToEdit = {
-        // ⭐ ID DO ITEM NO CARRINHO (para edição)
         cartItemId: cartItemId,
-        
-        // Propriedades básicas
         id: item.productId || item.id,
         productId: item.productId || item.originalProductId || item.id,
         name: item.name,
@@ -670,318 +659,392 @@
         cashback: item.cashback || 0,
         cuisineType: item.cuisineType || baseProduct?.cuisineType,
         quantity: item.quantity || 1,
-        
         isCombo: isComboItem,
         customization: baseProduct?.customization,
-        
-        // Propriedades de combo
         comboItems: isComboItem ? (baseProduct?.comboItems || item.comboItems) : null,
         comboAddons: isComboItem ? (baseProduct?.comboAddons || item.comboAddons) : null,
         savings: isComboItem ? (baseProduct?.savings || item.savings) : null,
         savingsPercent: isComboItem ? baseProduct?.savingsPercent : null,
         stock: baseProduct?.stock,
-        
-        // Dados das seleções
         comboItemSelections: isComboItem ? mappedSelections : {},
         comboAddonsState: isComboItem ? mappedAddons : {},
         selectedAddons: isComboItem ? (item.selectedAddons ? [...item.selectedAddons] : []) : [],
         itemSelections: isComboItem ? (item.itemSelections ? JSON.parse(JSON.stringify(item.itemSelections)) : {}) : {},
-        
-        // Propriedades para produtos normais
         aditionals: item.aditionals ? JSON.parse(JSON.stringify(item.aditionals)) : [],
         aditionalsState: item.aditionalsState ? { ...item.aditionalsState } : {},
         selectedSize: item.selectedSize,
         selectedFlavors: item.selectedFlavors ? [...item.selectedFlavors] : [],
-        
-        // Flag para indicar que está em modo de edição
         isEditing: true
     }
     
     console.log('Produto preparado para edição - cartItemId:', productToEdit.cartItemId)
-    
     selectedProduct.value = productToEdit
     showProductModal.value = true
+}
+
+const canConfirm = computed(() => {
+    if (!userStore.isLogged) return false
+    if (!selectedDeliveryMethod.value) return false
+    if (selectedDeliveryMethod.value.value === 'delivery' && !selectedAddress.value) return false
+    if (!selectedPaymentMethod.value) return false
+    return true
+})
+
+const handleIdentify = (data) => {
+    userStore.login(data)
+    showModal.value = false
+    
+    if (data.deliveryMethod) {
+        selectedDeliveryMethod.value = data.deliveryMethod
+        localStorage.setItem('selectedDeliveryMethod', JSON.stringify(data.deliveryMethod))
     }
-
-    // Computed para saber se pode confirmar
-    const canConfirm = computed(() => {
-        if (!userStore.isLogged) return false
-        if (!selectedDeliveryMethod.value) return false
-        if (selectedDeliveryMethod.value.value === 'delivery' && !selectedAddress.value) return false
-        if (!selectedPaymentMethod.value) return false
-        return true
-    })
-
-    const handleIdentify = (data) => {
-        userStore.login({ 
-            fullName: data.fullName, 
-            whatsapp: data.whatsapp,
-            deliveryMethod: data.deliveryMethod,
-            paymentMethod: data.paymentMethod,
-            selectedAddress: data.selectedAddress
-        })
-        
-        showModal.value = false
-        
-        if (data.deliveryMethod) {
-            selectedDeliveryMethod.value = data.deliveryMethod
-            localStorage.setItem('selectedDeliveryMethod', JSON.stringify(data.deliveryMethod))
-        }
-        
-        if (data.paymentMethod) {
-            selectedPaymentMethod.value = data.paymentMethod
-            localStorage.setItem('selectedPaymentMethod', data.paymentMethod)
-        }
-        
-        if (data.selectedAddress) {
-            selectedAddress.value = data.selectedAddress
-            localStorage.setItem('selectedAddressId', data.selectedAddress.id.toString())
-            localStorage.setItem('selectedAddress', JSON.stringify(data.selectedAddress))
-        }
-        
-        // toast.success(`Bem-vindo(a), ${data.fullName}!`, {
-        //     timeout: 4000
-        // })
-        
-        setTimeout(() => {
-            updateSelectedAddress()
-            loadSavedDeliveryMethod()
-            loadSavedPaymentMethod()
-        }, 100)
+    
+    if (data.paymentMethod) {
+        selectedPaymentMethod.value = data.paymentMethod
+        localStorage.setItem('selectedPaymentMethod', data.paymentMethod)
     }
-
-    const handleStorageChange = (e) => {
-        if ((e.key === 'addresses' || e.key === 'addressesUpdated') && userStore.isLogged) {
-            updateSelectedAddress()
-        }
+    
+    if (data.selectedAddress) {
+        selectedAddress.value = data.selectedAddress
+        localStorage.setItem('selectedAddressId', data.selectedAddress.id.toString())
+        localStorage.setItem('selectedAddress', JSON.stringify(data.selectedAddress))
     }
-
-    const handleCustomAddressUpdate = () => {
-        if (userStore.isLogged) {
-            updateSelectedAddress()
-        }
-    }
-
-    watch(() => userStore.isLogged, async (isLogged) => {
-        if (isLogged) {
-            await updateSelectedAddress()
-            loadSavedDeliveryMethod()
-            loadSavedPaymentMethod()
-        } else {
-            selectedAddress.value = null
-            selectedDeliveryMethod.value = null
-            selectedPaymentMethod.value = ''
-            localStorage.removeItem('selectedAddressId')
-            localStorage.removeItem('selectedAddress')
-            localStorage.removeItem('selectedDeliveryMethod')
-            localStorage.removeItem('selectedPaymentMethod')
-        }
-    })
-
-    const forceUpdate = ref(0)
-
-    watch(() => cart.items, (newItems) => {
-    console.log('Carrinho atualizado:', JSON.parse(JSON.stringify(newItems)))
-    // Força re-renderização
+    
     forceUpdate.value++
-    }, { deep: true })
+    
+    setTimeout(() => {
+        updateSelectedAddress()
+        loadSavedDeliveryMethod()
+        loadSavedPaymentMethod()
+        forceUpdate.value++
+    }, 100)
+}
 
-    const checkAddressChanges = () => {
-        const checkInterval = setInterval(() => {
-            if (userStore.isLogged) {
-                const savedAddressId = localStorage.getItem('selectedAddressId')
-                const savedAddress = localStorage.getItem('selectedAddress')
-                
-                if (savedAddressId && savedAddress) {
-                    const parsedAddress = JSON.parse(savedAddress)
-                    if (selectedAddress.value?.id !== parsedAddress.id) {
-                        updateSelectedAddress()
+const handleStorageChange = (e) => {
+    if ((e.key === 'addresses' || e.key === 'addressesUpdated') && userStore.isLogged) {
+        updateSelectedAddress()
+        forceUpdate.value++
+    }
+}
+
+const handleCustomAddressUpdate = () => {
+    console.log('Evento addresses-updated recebido no Cart')
+    setTimeout(() => {
+        if (userStore.isLogged) {
+            const addressesJson = localStorage.getItem('addresses')
+            if (addressesJson) {
+                const addresses = JSON.parse(addressesJson)
+                const savedSelectedId = localStorage.getItem('selectedAddressId')
+                if (savedSelectedId) {
+                    const foundAddress = addresses.find(addr => addr.id === parseInt(savedSelectedId))
+                    if (foundAddress) {
+                        selectedAddress.value = foundAddress
+                        console.log('Endereço atualizado via evento:', foundAddress)
+                        forceUpdate.value++
                     }
                 }
             }
-        }, 500)
-        
-        onUnmounted(() => {
-            clearInterval(checkInterval)
-        })
-    }
+            if (userStore.selectedAddress) {
+                selectedAddress.value = userStore.selectedAddress
+                forceUpdate.value++
+            }
+            updateSelectedAddress()
+        }
+    }, 100)
+}
 
-    onMounted(() => {
-        // Expor products para o window para acesso no Cart
-        if (typeof window !== 'undefined') {
-            // O App.vue expõe os produtos, mas aqui também podemos buscar
-            // Isso é apenas para referência
+const handleUserDataUpdated = (event) => {
+    console.log('Evento user-data-updated recebido:', event.detail)
+    if (event.detail) {
+        if (event.detail.selectedAddress) {
+            selectedAddress.value = event.detail.selectedAddress
+            forceUpdate.value++
+        }
+        if (event.detail.deliveryMethod) {
+            selectedDeliveryMethod.value = event.detail.deliveryMethod
+            forceUpdate.value++
+        }
+        if (event.detail.paymentMethod) {
+            selectedPaymentMethod.value = event.detail.paymentMethod
+            forceUpdate.value++
+        }
+    }
+    forceUpdate.value++
+}
+
+// ========== WATCHERS FORTES ==========
+
+// Watch para selectedAddress do userStore
+watch(() => userStore.selectedAddress, (newAddress, oldAddress) => {
+    console.log('🔴 WATCH FORTE: userStore.selectedAddress mudou')
+    console.log('De:', oldAddress)
+    console.log('Para:', newAddress)
+    
+    if (newAddress) {
+        selectedAddress.value = newAddress
+        localStorage.setItem('selectedAddressId', newAddress.id.toString())
+        localStorage.setItem('selectedAddress', JSON.stringify(newAddress))
+    } else if (oldAddress && !newAddress) {
+        selectedAddress.value = null
+    }
+    forceUpdate.value++
+}, { deep: true, immediate: true })
+
+// Watch para deliveryMethod do userStore
+watch(() => userStore.deliveryMethod, (newMethod, oldMethod) => {
+    console.log('🔴 WATCH FORTE: userStore.deliveryMethod mudou:', newMethod)
+    if (newMethod) {
+        selectedDeliveryMethod.value = newMethod
+        localStorage.setItem('selectedDeliveryMethod', JSON.stringify(newMethod))
+        forceUpdate.value++
+    }
+}, { deep: true, immediate: true })
+
+// Watch para paymentMethod do userStore
+watch(() => userStore.paymentMethod, (newMethod, oldMethod) => {
+    console.log('🔴 WATCH FORTE: userStore.paymentMethod mudou:', newMethod)
+    if (newMethod) {
+        selectedPaymentMethod.value = newMethod
+        localStorage.setItem('selectedPaymentMethod', newMethod)
+        forceUpdate.value++
+    }
+}, { deep: true, immediate: true })
+
+// Watch para isLogged do userStore
+watch(() => userStore.isLogged, async (isLogged, oldIsLogged) => {
+    console.log('🔴 WATCH FORTE: userStore.isLogged mudou para:', isLogged)
+    
+    if (isLogged) {
+        await userStore.fetchUserFromBackend()
+        
+        await nextTick()
+        
+        if (userStore.selectedAddress) {
+            selectedAddress.value = userStore.selectedAddress
+            console.log('Endereço carregado do userStore:', userStore.selectedAddress)
+        }
+        if (userStore.deliveryMethod) {
+            selectedDeliveryMethod.value = userStore.deliveryMethod
+        }
+        if (userStore.paymentMethod) {
+            selectedPaymentMethod.value = userStore.paymentMethod
         }
         
-        userStore.loadUserFromStorage()
+        updateSelectedAddress()
+        loadSavedDeliveryMethod()
+        loadSavedPaymentMethod()
+        
+        forceUpdate.value++
+    } else {
+        selectedAddress.value = null
+        selectedDeliveryMethod.value = null
+        selectedPaymentMethod.value = ''
+        forceUpdate.value++
+    }
+}, { immediate: true })
+
+// Watch para cart items
+watch(() => cart.items, (newItems) => {
+    console.log('Carrinho atualizado:', JSON.parse(JSON.stringify(newItems)))
+    forceUpdate.value++
+}, { deep: true })
+
+const checkAddressChanges = () => {
+    const checkInterval = setInterval(() => {
+        if (userStore.isLogged) {
+            const savedAddressId = localStorage.getItem('selectedAddressId')
+            const savedAddress = localStorage.getItem('selectedAddress')
+            
+            if (savedAddressId && savedAddress) {
+                const parsedAddress = JSON.parse(savedAddress)
+                if (selectedAddress.value?.id !== parsedAddress.id) {
+                    updateSelectedAddress()
+                    forceUpdate.value++
+                }
+            }
+        }
+    }, 500)
+    
+    onUnmounted(() => {
+        clearInterval(checkInterval)
+    })
+}
+
+const handleConfirm = () => {
+    if (!canConfirm.value) {
+        if (!userStore.isLogged) {
+            toast.warning('Você precisa se identificar antes de continuar!', { timeout: 3000 })
+        } else if (!selectedDeliveryMethod.value) {
+            toast.warning('Por favor, selecione uma forma de entrega antes de continuar!', { timeout: 3000 })
+        } else if (selectedDeliveryMethod.value.value === 'delivery' && !selectedAddress.value) {
+            toast.warning('Por favor, selecione um endereço de entrega antes de continuar!', { timeout: 3000 })
+        } else if (!selectedPaymentMethod.value) {
+            toast.warning('Por favor, selecione uma forma de pagamento antes de continuar!', { timeout: 3000 })
+        }
+        return
+    }
+    
+    const orderData = {
+        user: {
+            fullName: userStore.fullName,
+            whatsapp: userStore.whatsapp
+        },
+        deliveryMethod: selectedDeliveryMethod.value,
+        paymentMethod: selectedPaymentMethod.value,
+        address: selectedAddress.value,
+        cart: cart.items,
+        totals: {
+            subTotal: cart.subTotal,
+            discount: cart.discount,
+            total: cart.total
+        },
+        completedAt: new Date().toISOString()
+    }
+    
+    console.log('Pedido confirmado:', orderData)
+    toast.success('Pedido confirmado com sucesso!', { timeout: 4000 })
+}
+
+const formatPrice = (value) => {
+    if (!value && value !== 0) return 'R$ 0,00'
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(value)
+}
+
+const getItemTotal = (item) => {
+    if (!item) return 0
+    if (item.isCombo) {
+        return (item.finalPrice || item.price) * (item.quantity || 1)
+    }
+    const productTotal = (item.price || 0) * (item.quantity || 1)
+    const aditionalsTotal = getItemAditionalsTotal(item)
+    return productTotal + aditionalsTotal
+}
+
+const getItemAditionalsTotal = (item) => {
+    if (!item || !item.aditionals) return 0
+    let total = 0
+    item.aditionals.forEach(group => {
+        group.items.forEach(aditional => {
+            if (aditional.quantity > 0 && aditional.price) {
+                total += (aditional.price * aditional.quantity)
+            }
+        })
+    })
+    return total
+}
+
+const getItemAditionalsList = (item) => {
+    if (!item || !item.aditionals) return []
+    const list = []
+    item.aditionals.forEach(group => {
+        group.items.forEach(aditional => {
+            if (aditional.quantity > 0) {
+                list.push({
+                    name: aditional.name,
+                    quantity: aditional.quantity,
+                    price: aditional.price || 0,
+                    total: (aditional.price || 0) * aditional.quantity
+                })
+            }
+        })
+    })
+    return list
+}
+
+const formatReorderDate = (date) => {
+    if (!date) return 'agora mesmo'
+    const now = new Date()
+    const reorderDate = new Date(date)
+    const diffMinutes = Math.floor((now - reorderDate) / 60000)
+    
+    if (diffMinutes < 1) return 'agora mesmo'
+    if (diffMinutes < 60) return `${diffMinutes} minuto(s) atrás`
+    if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)} hora(s) atrás`
+    return reorderDate.toLocaleDateString('pt-BR')
+}
+
+const debugCart = () => {
+    console.log('Itens no carrinho:', JSON.parse(JSON.stringify(cart.items)))
+    console.log('UserStore logado:', userStore.isLogged)
+    console.log('Endereço selecionado:', selectedAddress.value)
+    console.log('Método de entrega:', selectedDeliveryMethod.value)
+    console.log('Método de pagamento:', selectedPaymentMethod.value)
+}
+
+const loadSavedAddress = () => {
+    updateSelectedAddress()
+}
+
+onMounted(() => {
+    userStore.loadUserFromStorage()
+    
+    console.log('🟢 onMounted - userStore.isLogged:', userStore.isLogged)
+    console.log('🟢 onMounted - userStore.selectedAddress:', userStore.selectedAddress)
+    
+    if (userStore.isLogged) {
+        if (userStore.selectedAddress) {
+            selectedAddress.value = userStore.selectedAddress
+            localStorage.setItem('selectedAddressId', userStore.selectedAddress.id.toString())
+            localStorage.setItem('selectedAddress', JSON.stringify(userStore.selectedAddress))
+        }
+        if (userStore.deliveryMethod) {
+            selectedDeliveryMethod.value = userStore.deliveryMethod
+            localStorage.setItem('selectedDeliveryMethod', JSON.stringify(userStore.deliveryMethod))
+        }
+        if (userStore.paymentMethod) {
+            selectedPaymentMethod.value = userStore.paymentMethod
+            localStorage.setItem('selectedPaymentMethod', userStore.paymentMethod)
+        }
+        
         loadSavedAddress()
         loadSavedDeliveryMethod()
         loadSavedPaymentMethod()
-        checkAddressChanges()
         
-        window.addEventListener('storage', handleStorageChange)
-        window.addEventListener('addresses-updated', handleCustomAddressUpdate)
-        
-        window.addEventListener('user-login', (event) => {
-            if (event.detail) {
-                userStore.login({
-                    fullName: event.detail.fullName,
-                    whatsapp: event.detail.whatsapp,
-                    deliveryMethod: event.detail.deliveryMethod,
-                    paymentMethod: event.detail.paymentMethod,
-                    selectedAddress: event.detail.selectedAddress
-                })
-                
-                if (event.detail.deliveryMethod) {
-                    selectedDeliveryMethod.value = event.detail.deliveryMethod
-                    localStorage.setItem('selectedDeliveryMethod', JSON.stringify(event.detail.deliveryMethod))
-                }
-                
-                if (event.detail.paymentMethod) {
-                    selectedPaymentMethod.value = event.detail.paymentMethod
-                    localStorage.setItem('selectedPaymentMethod', event.detail.paymentMethod)
-                }
-                
-                if (event.detail.selectedAddress) {
-                    selectedAddress.value = event.detail.selectedAddress
-                    localStorage.setItem('selectedAddressId', event.detail.selectedAddress.id.toString())
-                    localStorage.setItem('selectedAddress', JSON.stringify(event.detail.selectedAddress))
-                }
-                
-                setTimeout(() => {
-                    updateSelectedAddress()
-                    loadSavedDeliveryMethod()
-                    loadSavedPaymentMethod()
-                }, 100)
+        forceUpdate.value++
+    }
+    
+    checkAddressChanges()
+    setTimeout(debugCart, 1000)
+    
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('addresses-updated', handleCustomAddressUpdate)
+    window.addEventListener('user-data-updated', handleUserDataUpdated)
+    window.addEventListener('user-login', (event) => {
+        console.log('Evento user-login recebido:', event.detail)
+        if (event.detail) {
+            userStore.login(event.detail)
+            if (event.detail.deliveryMethod) {
+                selectedDeliveryMethod.value = event.detail.deliveryMethod
+                localStorage.setItem('selectedDeliveryMethod', JSON.stringify(event.detail.deliveryMethod))
             }
-        })
-    })
-
-    onUnmounted(() => {
-        window.removeEventListener('storage', handleStorageChange)
-        window.removeEventListener('addresses-updated', handleCustomAddressUpdate)
-    })
-
-    const handleConfirm = () => {
-        if (!canConfirm.value) {
-            if (!userStore.isLogged) {
-                toast.warning('Você precisa se identificar antes de continuar!', {
-                    timeout: 3000
-                })
-            } else if (!selectedDeliveryMethod.value) {
-                toast.warning('Por favor, selecione uma forma de entrega antes de continuar!', {
-                    timeout: 3000
-                })
-            } else if (selectedDeliveryMethod.value.value === 'delivery' && !selectedAddress.value) {
-                toast.warning('Por favor, selecione um endereço de entrega antes de continuar!', {
-                    timeout: 3000
-                })
-            } else if (!selectedPaymentMethod.value) {
-                toast.warning('Por favor, selecione uma forma de pagamento antes de continuar!', {
-                    timeout: 3000
-                })
+            if (event.detail.paymentMethod) {
+                selectedPaymentMethod.value = event.detail.paymentMethod
+                localStorage.setItem('selectedPaymentMethod', event.detail.paymentMethod)
             }
-            return
+            if (event.detail.selectedAddress) {
+                selectedAddress.value = event.detail.selectedAddress
+                localStorage.setItem('selectedAddressId', event.detail.selectedAddress.id.toString())
+                localStorage.setItem('selectedAddress', JSON.stringify(event.detail.selectedAddress))
+            }
+            forceUpdate.value++
+            setTimeout(() => {
+                updateSelectedAddress()
+                loadSavedDeliveryMethod()
+                loadSavedPaymentMethod()
+                forceUpdate.value++
+            }, 100)
         }
-        
-        const orderData = {
-            user: {
-                fullName: userStore.fullName,
-                whatsapp: userStore.whatsapp
-            },
-            deliveryMethod: selectedDeliveryMethod.value,
-            paymentMethod: selectedPaymentMethod.value,
-            address: selectedAddress.value,
-            cart: cart.items,
-            totals: {
-                subTotal: cart.subTotal,
-                discount: cart.discount,
-                total: cart.total
-            },
-            completedAt: new Date().toISOString()
-        }
-        
-        console.log('Pedido confirmado:', orderData)
-        
-        toast.success('Pedido confirmado com sucesso!', {
-            timeout: 4000
-        })
-    }
-
-    const formatPrice = (value) => {
-        if (!value && value !== 0) return 'R$ 0,00'
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        }).format(value)
-    }
-    
-    const getItemTotal = (item) => {
-        if (!item) return 0
-        // Se for combo, usa o finalPrice
-        if (item.isCombo) {
-            return item.finalPrice || item.price
-        }
-        // Para produtos normais
-        const productTotal = (item.price || 0) * (item.quantity || 1)
-        const aditionalsTotal = getItemAditionalsTotal(item)
-        return productTotal + aditionalsTotal
-    }
-    
-    const getItemAditionalsTotal = (item) => {
-        if (!item || !item.aditionals) return 0
-        
-        let total = 0
-        item.aditionals.forEach(group => {
-            group.items.forEach(aditional => {
-                if (aditional.quantity > 0 && aditional.price) {
-                    total += (aditional.price * aditional.quantity)
-                }
-            })
-        })
-        return total
-    }
-    
-    const getItemAditionalsList = (item) => {
-        if (!item || !item.aditionals) return []
-        
-        const list = []
-        item.aditionals.forEach(group => {
-            group.items.forEach(aditional => {
-                if (aditional.quantity > 0) {
-                    list.push({
-                        name: aditional.name,
-                        quantity: aditional.quantity,
-                        price: aditional.price || 0,
-                        total: (aditional.price || 0) * aditional.quantity
-                    })
-                }
-            })
-        })
-        return list
-    }
-    
-    const formatReorderDate = (date) => {
-        if (!date) return 'agora mesmo'
-        const now = new Date()
-        const reorderDate = new Date(date)
-        const diffMinutes = Math.floor((now - reorderDate) / 60000)
-        
-        if (diffMinutes < 1) return 'agora mesmo'
-        if (diffMinutes < 60) return `${diffMinutes} minuto(s) atrás`
-        if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)} hora(s) atrás`
-        return reorderDate.toLocaleDateString('pt-BR')
-    }
-
-    // Função para debug - ver o que tem no carrinho
-    const debugCart = () => {
-        console.log('Itens no carrinho:', JSON.parse(JSON.stringify(cart.items)))
-    }
-    
-    // Chamar debug quando montar
-    onMounted(() => {
-        setTimeout(debugCart, 1000)
     })
+})
+
+onUnmounted(() => {
+    window.removeEventListener('storage', handleStorageChange)
+    window.removeEventListener('addresses-updated', handleCustomAddressUpdate)
+    window.removeEventListener('user-data-updated', handleUserDataUpdated)
+})
 </script>
 
 <style scoped>

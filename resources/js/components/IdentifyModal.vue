@@ -352,7 +352,6 @@ const handleAddressSelected = async (address) => {
   if (address && pendingAddressSelection.value) {
     pendingAddressSelection.value = false
     
-    // Salva o endereço selecionado no localStorage
     const userData = {
       whatsapp: whatsapp.value,
       fullName: fullName.value,
@@ -451,13 +450,11 @@ const logout = async () => {
 
 // Verifica dados iniciais - Fluxo principal
 const checkAndAdvanceToDelivery = async () => {
-  // Se está logado, faz logout
   if (isLoggedIn.value) {
     logout()
     return
   }
 
-  // Valida campos
   if (!whatsapp.value || !fullName.value) {
     toast.warning('Preencha todos os campos!', { timeout: 3000 })
     return
@@ -466,18 +463,22 @@ const checkAndAdvanceToDelivery = async () => {
   isLoading.value = true
 
   try {
-    // Limpa o número do WhatsApp (remove formatação)
     const cleanWhatsapp = whatsapp.value.replace(/\D/g, '')
-    
-    // Verifica se o usuário existe no banco
     const userExists = await checkUserExists(cleanWhatsapp, fullName.value)
 
     if (userExists) {
-      // USUÁRIO EXISTE: Faz login e finaliza (não vai para seleção)
       await loginUser(cleanWhatsapp, fullName.value)
     } else {
-      // USUÁRIO NÃO EXISTE: Vai para seleção de entrega/pagamento
-      isRegistrationMode.value = true // Ativa modo cadastro
+      // 🔥 LIMPA O LOCALSTORAGE PARA NOVO CADASTRO (NOVO USUÁRIO)
+      localStorage.removeItem('addresses')
+      localStorage.removeItem('selectedAddress')
+      localStorage.removeItem('selectedAddressId')
+      localStorage.removeItem('selectedDeliveryMethod')
+      localStorage.removeItem('selectedPaymentMethod')
+      localStorage.removeItem('userData')
+      localStorage.removeItem('addressesUpdated')
+      
+      isRegistrationMode.value = true
       currentStep.value = 'delivery'
       toast.info('Complete seu cadastro selecionando as opções abaixo', { timeout: 3000 })
     }
@@ -511,17 +512,15 @@ const submitForm = async () => {
 
   isLoading.value = true
 
-  // Tenta buscar endereço do localStorage (modo cadastro)
   let selectedAddress = null
   
+  // Busca endereço do localStorage (modo cadastro)
   const storedAddresses = localStorage.getItem('addresses')
   if (storedAddresses) {
     const addresses = JSON.parse(storedAddresses)
-    // Pega o endereço principal ou o primeiro
     selectedAddress = addresses.find(a => a.primary === true) || addresses[0]
   }
   
-  // Se não encontrou no localStorage, tenta no userData (fallback)
   if (!selectedAddress) {
     const userData = localStorage.getItem('userData')
     if (userData) {
@@ -530,7 +529,6 @@ const submitForm = async () => {
     }
   }
 
-  // Para delivery, verifica se tem endereço
   if (tempDeliveryMethod.value.value === 'delivery' && !selectedAddress) {
     pendingAddressSelection.value = true
     showAddressModal.value = true
@@ -552,7 +550,6 @@ const submitForm = async () => {
   try {
     console.log('Registrando novo usuário:', data)
     
-    // Registra novo usuário
     const response = await axios.post('/identify/register', data)
     
     console.log('Resposta do registro:', response.data)
@@ -569,9 +566,11 @@ const submitForm = async () => {
       })
       isLoggedIn.value = true
       
-      // Limpa os dados temporários do localStorage após cadastro
       localStorage.removeItem('addresses')
       localStorage.removeItem('userData')
+      
+      // Dispara evento para atualizar endereço no Cart
+      window.dispatchEvent(new CustomEvent('addresses-updated'))
       
       const loginEvent = new CustomEvent('user-login', { 
         detail: { 
@@ -593,7 +592,6 @@ const submitForm = async () => {
     }
   } catch (error) {
     console.error('Erro detalhado ao finalizar cadastro:', error)
-    console.error('Resposta do erro:', error.response?.data)
     if (error.response?.data?.errors) {
       const errors = error.response.data.errors
       Object.values(errors).forEach(err => {
@@ -607,7 +605,7 @@ const submitForm = async () => {
   }
 }
 
-// Quando abrir o modal, carrega dados salvos
+// Watchers
 watch(() => props.modelValue, async (open) => {
   if (open) {
     currentStep.value = 'form'

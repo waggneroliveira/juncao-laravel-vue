@@ -461,6 +461,12 @@
             } 
             // MODO CADASTRO OU USUÁRIO NÃO LOGADO - Salva apenas no localStorage
             else {
+                // 🔥 LIMPA A LISTA DE ENDEREÇOS ANTIGOS QUANDO FOR MODO CADASTRO
+                if (props.registrationMode) {
+                    addresses.value = []
+                    console.log('🧹 Modo cadastro: endereços antigos removidos')
+                }
+                
                 if (form.value.id) {
                     const index = addresses.value.findIndex(a => a.id === form.value.id)
                     if (index !== -1) {
