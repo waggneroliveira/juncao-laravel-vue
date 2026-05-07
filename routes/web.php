@@ -65,6 +65,41 @@ Route::get('/api/products', [HomePageController::class, 'products']);
 Route::get('/api/categories', [HomePageController::class, 'categories']);
 Route::get('/api/products/highlights', [HomePageController::class, 'highlights']);
 
+// Rotas API para Pedidos (autenticação necessária)
+Route::middleware('auth:client')->group(function () {
+    // Carrinho - Cálculos
+    Route::post('/api/cart/calculate', function (\Illuminate\Http\Request $request, \App\Services\CartCalculationService $service) {
+        try {
+            $validated = $request->validate([
+                'items' => 'required|array',
+                'coupon_code' => 'nullable|string',
+            ]);
+            
+            $calculation = $service->calculateCart($validated['items'], $validated['coupon_code'] ?? null);
+            
+            return response()->json([
+                'success' => true,
+                'data' => $calculation,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    });
+
+    // Pedidos CRUD
+    Route::apiResource('api/orders', \App\Http\Controllers\OrderController::class);
+    Route::post('/api/orders/{id}/reorder', [\App\Http\Controllers\OrderController::class, 'reorder']);
+    
+    // Cupons - Validação
+    Route::post('/api/coupons/validate', [\App\Http\Controllers\CouponController::class, 'validate']);
+});
+
+// Rotas API para Cupons (admin apenas - implement sua lógica de admin)
+Route::apiResource('api/coupons', \App\Http\Controllers\CouponController::class);
+
 Route::get('contato', [ContactPageController::class, 'index'])
 ->name('contact');
 

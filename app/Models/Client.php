@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Spatie\Activitylog\Traits\LogsActivity;
 use App\Notifications\ClientResetPasswordNotification;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class Client extends Authenticatable
@@ -32,6 +33,11 @@ class Client extends Authenticatable
 
     public function scopeActive($query){
         return $query->where('active', 1);
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
     }
 
     public function getActivitylogOptions(): LogOptions
