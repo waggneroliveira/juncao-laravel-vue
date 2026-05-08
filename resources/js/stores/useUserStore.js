@@ -65,6 +65,44 @@ export const useUserStore = defineStore('user', {
   },
 
   actions: {
+    syncUserData() {
+      console.log('🔄 Sincronizando dados do usuário...')
+      
+      // Carregar método de entrega do localStorage
+      const deliveryMethod = localStorage.getItem('selectedDeliveryMethod')
+      if (deliveryMethod && !this.deliveryMethod) {
+        this.deliveryMethod = JSON.parse(deliveryMethod)
+        console.log('📦 Método de entrega sincronizado:', this.deliveryMethod)
+      }
+      
+      // Carregar método de pagamento do localStorage
+      const paymentMethod = localStorage.getItem('selectedPaymentMethod')
+      if (paymentMethod && !this.paymentMethod) {
+        this.paymentMethod = paymentMethod
+        console.log('📦 Método de pagamento sincronizado:', this.paymentMethod)
+      }
+      
+      // Carregar endereço do localStorage
+      const selectedAddress = localStorage.getItem('selectedAddress')
+      if (selectedAddress && !this.selectedAddress) {
+        this.selectedAddress = JSON.parse(selectedAddress)
+        console.log('📦 Endereço sincronizado:', this.selectedAddress)
+      }
+      
+      // Salvar no storage para persistência
+      this.saveToStorage()
+      
+      // Emitir evento para outros componentes (Cart, etc.)
+      window.dispatchEvent(new CustomEvent('user-data-synced', { 
+        detail: {
+          selectedAddress: this.selectedAddress,
+          deliveryMethod: this.deliveryMethod,
+          paymentMethod: this.paymentMethod
+        } 
+      }))
+      
+      console.log('✅ Sincronização concluída!')
+    },
     // Login do usuário - SEM chamar fetchUserFromBackend para não sobrescrever o endereço
     login(userData) {
       console.log('🟡 login chamado com:', userData)
