@@ -2,12 +2,18 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Models\Client;
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Mail\VerificationCodeMail;
+use App\Models\Client;
+use App\Models\SettingEmail;
+use App\Models\VerificationCode;
+use App\Services\EmailService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class AuthClientController extends Controller
 {
@@ -606,6 +612,195 @@ class AuthClientController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Erro ao atualizar endereço selecionado'
+            ], 500);
+        }
+    }
+
+    /**
+     * Envia código de verificação para o email
+     */
+    public function sendVerificationCode(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'email' => 'required|email',
+                'whatsapp' => 'required|string',
+                'fullName' => 'required|string'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dados inválidos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $email = $request->email;
+            $whatsapp = preg_replace('/\D/', '', $request->whatsapp);
+            $fullName = $request->fullName;
+
+            // Verificar se já existe um código válido não usado
+            $existingCode = VerificationCode::where('email', $email)
+                ->where('used', false)
+                ->where('expires_at', '>', now())
+                ->first();
+
+            if ($existingCode) {
+                // Reenviar o mesmo código
+                $code = $existingCode->code;
+                $token = $existingCode->token;
+            } else {
+                // Gerar novo código de 6 dígitos
+                $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+                $token = Str::random(64);
+
+                // Remover códigos antigos expirados
+                VerificationCode::where('email', $email)
+                    ->where('expires_at', '<', now())
+                    ->delete();
+
+                // Criar novo registro
+                VerificationCode::create([
+                    'email' => $email,
+                    'whatsapp' => $whatsapp,
+                    'full_name' => $fullName,
+                    'code' => $code,
+                    'token' => $token,
+                    'expires_at' => now()->addMinutes(10),
+                    'used' => false
+                ]);
+            }
+
+            // 🔥 BUSCAR CONFIGURAÇÕES DE EMAIL DO BANCO
+            $emailSettings = SettingEmail::first();
+            
+            // 🔥 CONFIGURAR O EMAIL SERVICE
+            $emailService = new EmailService();
+            $emailService->configureAndSend($emailSettings, $request->only('email'));
+            
+            // Enviar email
+            try {
+                Mail::to($email)->send(new VerificationCodeMail($code, $fullName));
+            } catch (\Exception $e) {
+                \Log::error('Erro ao enviar email: ' . $e->getMessage());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erro ao enviar email. Verifique se o endereço é válido.'
+                ], 500);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Código enviado com sucesso!',
+                'token' => $token
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Erro ao enviar código: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao enviar código: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Verifica o código digitado pelo usuário
+     */
+    public function verifyCode(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'email' => 'required|email',
+                'code' => 'required|string|size:6',
+                'token' => 'nullable|string'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dados inválidos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $email = $request->email;
+            $code = $request->code;
+            $token = $request->token;
+
+            // Buscar o código válido
+            $query = VerificationCode::where('email', $email)
+                ->where('code', $code)
+                ->where('used', false)
+                ->where('expires_at', '>', now());
+
+            if ($token) {
+                $query->where('token', $token);
+            }
+
+            $verificationCode = $query->first();
+
+            if (!$verificationCode) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Código inválido ou expirado. Solicite um novo código.'
+                ], 400);
+            }
+
+            // Marcar como usado
+            $verificationCode->used = true;
+            $verificationCode->save();
+
+            // Verificar se o usuário já existe
+            $whatsapp = $verificationCode->whatsapp;
+            $fullName = $verificationCode->full_name;
+
+            // Buscar cliente pelo WhatsApp
+            $clients = Client::where('active', 1)->get();
+            $client = null;
+
+            foreach ($clients as $c) {
+                $telefoneBanco = preg_replace('/\D/', '', $c->phone);
+                if ($telefoneBanco === $whatsapp) {
+                    $client = $c;
+                    break;
+                }
+            }
+
+            if ($client) {
+                // Verificar se o nome confere
+                if (strtolower(trim($client->name)) === strtolower($fullName)) {
+                    // Usuário existente - já pode fazer login
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Código verificado com sucesso!',
+                        'isExistingUser' => true,
+                        'client' => [
+                            'id' => $client->id,
+                            'name' => $client->name,
+                            'email' => $client->email,
+                            'whatsapp' => $client->phone,
+                            'delivery_method' => $client->delivery_method ? json_decode($client->delivery_method, true) : null,
+                            'payment_method' => $client->payment_method ?? null,
+                            'selected_address_id' => $client->selected_address_id ?? null
+                        ]
+                    ]);
+                }
+            }
+
+            // Usuário novo ou nome não confere
+            return response()->json([
+                'success' => true,
+                'message' => 'Código verificado com sucesso!',
+                'isExistingUser' => false
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Erro ao verificar código: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao verificar código: ' . $e->getMessage()
             ], 500);
         }
     }

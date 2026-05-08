@@ -132,23 +132,6 @@ class ClientAddressController extends Controller
             'address' => $address
         ]);
     }
-    
-    // public function destroy($id)
-    // {
-    //     $client = Auth::guard('client')->user();
-        
-    //     $address = ClientAddress::where('id', $id)
-    //         ->where('client_id', $client->id)
-    //         ->firstOrFail();
-        
-    //     $address->update(['active' => 0]);
-        
-    //     return response()->json([
-    //         'success' => true,
-    //         'message' => 'Endereço removido com sucesso'
-    //     ]);
-    // }
-    // App/Http/Controllers/ClientAddressController.php
 
     public function destroy($id)
     {

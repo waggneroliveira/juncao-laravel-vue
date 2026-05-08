@@ -56,14 +56,27 @@
             </div>
 
             <div class="mb-3">
-              <label class="form-label">Digite seu Nome Completo</label>
+              <label class="form-label">Digite seu Primeiro Nome</label>
               <input
                 v-model="fullName"
                 type="text"
                 class="form-control"
-                placeholder="Nome completo"
+                placeholder="Nome"
                 :disabled="isLoading"
               >
+            </div>
+
+            <!-- 🔥 NOVO CAMPO: EMAIL -->
+            <div class="mb-3">
+              <label class="form-label">Seu E-mail</label>
+              <input
+                v-model="email"
+                type="email"
+                class="form-control"
+                placeholder="exemplo@email.com"
+                :disabled="isLoading"
+              >
+              <small class="text-muted">Enviaremos um código de verificação para este e-mail</small>
             </div>
 
             <button 
@@ -76,7 +89,61 @@
             </button>
           </div>
 
-          <!-- ETAPA 3: FORMA DE ENTREGA (usando o modal) -->
+          <!-- 🔥 NOVA ETAPA: VERIFICAÇÃO DE CÓDIGO -->
+          <div v-show="currentStep === 'codeVerification'" class="step-section text-center py-4">
+            <div class="text-center mb-4">
+              <h4 class="fw-semibold text-secondary">Verifique seu e-mail</h4>
+              <p class="text-muted small">
+                Enviamos um código de 6 dígitos para:<br>
+                <strong>{{ email }}</strong>
+              </p>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label">Digite o código de verificação</label>
+              <div class="d-flex justify-content-center gap-2">
+                <input
+                  v-for="(digit, index) in 6"
+                  :key="index"
+                  type="text"
+                  class="form-control code-digit"
+                  maxlength="1"
+                  v-model="verificationCodeDigits[index]"
+                  @input="handleCodeInput(index, $event)"
+                  @keydown="handleCodeKeydown(index, $event)"
+                  :disabled="isLoading"
+                >
+              </div>
+            </div>
+
+            <div class="d-flex flex-column gap-2">
+              <button 
+                class="btn btn-primary w-100" 
+                @click="verifyCode"
+                :disabled="!isCodeComplete || isLoading"
+              >
+                <span v-if="isLoading">Verificando...</span>
+                <span v-else>Verificar Código</span>
+              </button>
+              
+              <button 
+                class="btn btn-link" 
+                @click="resendCode"
+                :disabled="isLoading || resendCountdown > 0"
+              >
+                <span v-if="resendCountdown > 0">
+                  Reenviar código em {{ resendCountdown }}s
+                </span>
+                <span v-else>Reenviar código</span>
+              </button>
+              
+              <button class="btn btn-outline-secondary" @click="backToForm">
+                Voltar
+              </button>
+            </div>
+          </div>
+
+          <!-- ETAPA 3: FORMA DE ENTREGA -->
           <div v-show="currentStep === 'delivery'" class="step-section text-center py-4">
             <div class="text-center mb-4">
               <h4 class="fw-semibold text-secondary">Selecione a forma de entrega</h4>
@@ -116,7 +183,7 @@
             </div>
           </div>
 
-          <!-- ETAPA 4: FORMA DE PAGAMENTO (usando o modal) -->
+          <!-- ETAPA 4: FORMA DE PAGAMENTO -->
           <div v-show="currentStep === 'payment'" class="step-section text-center py-4">
             <div class="text-center mb-4">
               <h4 class="fw-semibold text-secondary">Selecione a forma de pagamento</h4>
@@ -189,7 +256,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, computed } from 'vue'
 import { useToast } from 'vue-toastification'
 import AddressModal from './AddressModal.vue'
 import DeliveryMethodModal from './DeliveryMethodModal.vue'
@@ -209,12 +276,24 @@ const userStore = useUserStore()
 // Dados do formulário
 const whatsapp = ref('')
 const fullName = ref('')
+const email = ref('') // 🔥 NOVO CAMPO
 
 // Controle de etapas
-const currentStep = ref('form') // form, delivery, payment
+const currentStep = ref('form') // form, codeVerification, delivery, payment
 const isLoading = ref(false)
 const isLoggedIn = ref(false)
-const showRegistrationForm = ref(false) // 🔥 ADICIONADO - controle do formulário de cadastro
+const showRegistrationForm = ref(false)
+
+// 🔥 CÓDIGO DE VERIFICAÇÃO
+const verificationCodeDigits = ref(['', '', '', '', '', ''])
+const verificationToken = ref(null)
+const resendCountdown = ref(0)
+let resendTimer = null
+
+// Computed para verificar se o código está completo
+const isCodeComplete = computed(() => {
+  return verificationCodeDigits.value.every(digit => digit.length === 1)
+})
 
 // Controle do modal de endereços
 const showAddressModal = ref(false)
@@ -247,6 +326,10 @@ const resetModal = () => {
     tempPaymentMethod.value = ''
     isRegistrationMode.value = false
     showRegistrationForm.value = false
+    verificationCodeDigits.value = ['', '', '', '', '', '']
+    verificationToken.value = null
+    if (resendTimer) clearInterval(resendTimer)
+    resendCountdown.value = 0
   }, 300)
 }
 
@@ -268,33 +351,177 @@ const checkIfLoggedIn = () => {
   if (userStore.isLogged) {
     whatsapp.value = userStore.whatsapp || ''
     fullName.value = userStore.fullName || ''
+    email.value = userStore.email || ''
     isLoggedIn.value = true
     return true
   }
   return false
 }
 
-// Verificação de usuário no backend (apenas para verificar existência)
-const checkUserExists = async (whatsappNumber, name) => {
+// 🔥 MANIPULAÇÃO DO CÓDIGO
+const handleCodeInput = (index, event) => {
+  const value = event.target.value.replace(/\D/g, '')
+  if (value.length > 0) {
+    verificationCodeDigits.value[index] = value.charAt(0)
+    if (index < 5 && value.length > 0) {
+      const nextInput = document.querySelectorAll('.code-digit')[index + 1]
+      if (nextInput) nextInput.focus()
+    }
+  } else {
+    verificationCodeDigits.value[index] = ''
+  }
+}
+
+const handleCodeKeydown = (index, event) => {
+  if (event.key === 'Backspace' && !verificationCodeDigits.value[index] && index > 0) {
+    const prevInput = document.querySelectorAll('.code-digit')[index - 1]
+    if (prevInput) {
+      prevInput.focus()
+      verificationCodeDigits.value[index - 1] = ''
+    }
+  }
+}
+
+// 🔥 ENVIAR CÓDIGO PARA O EMAIL
+const sendVerificationCode = async () => {
   try {
-    console.log('Verificando usuário:', { whatsapp: whatsappNumber, fullName: name })
-    
-    const response = await axios.post('/identify/check', {
-      whatsapp: whatsappNumber,
-      fullName: name
+    const response = await axios.post('/identify/send-code', {
+      email: email.value,
+      whatsapp: whatsapp.value.replace(/\D/g, ''),
+      fullName: fullName.value
     })
     
-    console.log('Resposta do check:', response.data)
-    
     if (response.data.success) {
-      return response.data.exists === true
+      verificationToken.value = response.data.token
+      toast.success('Código enviado para seu e-mail!', { timeout: 5000 })
+      
+      // Iniciar contador de reenvio
+      startResendCountdown()
+    } else {
+      toast.error(response.data.message || 'Erro ao enviar código')
+      return false
     }
-    return false
   } catch (error) {
-    console.error('Erro detalhado ao verificar usuário:', error)
-    toast.error('Erro ao verificar dados. Tente novamente.')
+    console.error('Erro ao enviar código:', error)
+    toast.error(error.response?.data?.message || 'Erro ao enviar código')
     return false
   }
+  return true
+}
+
+// 🔥 VERIFICAR CÓDIGO DIGITADO
+const verifyCode = async () => {
+  const code = verificationCodeDigits.value.join('')
+  if (code.length !== 6) {
+    toast.warning('Digite o código de 6 dígitos')
+    return
+  }
+  
+  isLoading.value = true
+  
+  try {
+    const response = await axios.post('/identify/verify-code', {
+      email: email.value,
+      code: code,
+      token: verificationToken.value
+    })
+    
+    if (response.data.success) {
+      toast.success('Código verificado com sucesso!', { timeout: 3000 })
+      
+      // Verificar se é usuário existente ou novo
+      if (response.data.isExistingUser) {
+        // Usuário existente - fazer login
+        await finalizeLogin(response.data.client)
+      } else {
+        // Novo usuário - continuar cadastro
+        isRegistrationMode.value = true
+        currentStep.value = 'delivery'
+        toast.info('Complete seu cadastro selecionando as opções abaixo', { timeout: 3000 })
+      }
+    } else {
+      toast.error(response.data.message || 'Código inválido. Tente novamente.')
+    }
+  } catch (error) {
+    console.error('Erro ao verificar código:', error)
+    toast.error(error.response?.data?.message || 'Erro ao verificar código')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// 🔥 FINALIZAR LOGIN DO USUÁRIO EXISTENTE
+const finalizeLogin = async (clientData) => {
+  try {
+    // Chamar validateUser para autenticar no backend
+    const authResponse = await axios.post('/identify/validate-user', {
+      whatsapp: whatsapp.value.replace(/\D/g, ''),
+      fullName: fullName.value
+    })
+    
+    if (authResponse.data.success) {
+      // Atualizar userStore
+      userStore.login({
+        id: clientData.id,
+        fullName: fullName.value,
+        whatsapp: whatsapp.value,
+        email: email.value,
+        isLogged: true
+      })
+      
+      // Carregar dados adicionais
+      await userStore.loadAddresses()
+      
+      // Disparar eventos
+      window.dispatchEvent(new CustomEvent('force-cart-update', { 
+        detail: { source: 'identify-modal', timestamp: Date.now() } 
+      }))
+      
+      emit('submit', {
+        isExistingUser: true,
+        whatsapp: whatsapp.value,
+        fullName: fullName.value,
+        email: email.value,
+        deliveryMethod: userStore.deliveryMethod,
+        paymentMethod: userStore.paymentMethod,
+        selectedAddress: userStore.selectedAddress
+      })
+      
+      close()
+      toast.success(`Bem-vindo de volta, ${fullName.value}!`)
+    } else {
+      throw new Error('Erro na autenticação')
+    }
+  } catch (error) {
+    console.error('Erro ao finalizar login:', error)
+    toast.error('Erro ao fazer login. Tente novamente.')
+  }
+}
+
+// 🔥 REENVIAR CÓDIGO
+const resendCode = async () => {
+  if (resendCountdown.value > 0) return
+  
+  isLoading.value = true
+  const success = await sendVerificationCode()
+  isLoading.value = false
+  
+  if (success) {
+    toast.info('Novo código enviado! Verifique seu e-mail.', { timeout: 5000 })
+  }
+}
+
+const startResendCountdown = () => {
+  resendCountdown.value = 60
+  if (resendTimer) clearInterval(resendTimer)
+  
+  resendTimer = setInterval(() => {
+    if (resendCountdown.value > 0) {
+      resendCountdown.value--
+    } else {
+      clearInterval(resendTimer)
+    }
+  }, 1000)
 }
 
 // 🔥 MÉTODO PRINCIPAL: Lida com o clique no botão "Continuar"
@@ -304,83 +531,36 @@ const handleContinue = async () => {
     return
   }
 
-  if (!whatsapp.value || !fullName.value) {
+  if (!whatsapp.value || !fullName.value || !email.value) {
     toast.warning('Preencha todos os campos!', { timeout: 3000 })
+    return
+  }
+
+  if (!email.value.includes('@') || !email.value.includes('.')) {
+    toast.warning('Digite um e-mail válido!', { timeout: 3000 })
     return
   }
 
   isLoading.value = true
 
   try {
+    // Verificar se usuário existe (apenas para validação)
     const cleanWhatsapp = whatsapp.value.replace(/\D/g, '')
-    const userExists = await checkUserExists(cleanWhatsapp, fullName.value)
-
-    if (userExists) {
-      // 🔥 USUÁRIO EXISTENTE - usa o método loginExistingUser do store
-      console.log('✅ Usuário existe! Fazendo login...')
-      await handleExistingUserLogin(cleanWhatsapp)
-    } else {
-      // 🔥 NOVO USUÁRIO - modo cadastro
-      console.log('🆕 Novo usuário! Iniciando cadastro...')
-      
-      // Limpa localStorage para novo cadastro
-      localStorage.removeItem('addresses')
-      localStorage.removeItem('selectedAddress')
-      localStorage.removeItem('selectedAddressId')
-      localStorage.removeItem('selectedDeliveryMethod')
-      localStorage.removeItem('selectedPaymentMethod')
-      localStorage.removeItem('userData')
-      
-      isRegistrationMode.value = true
-      currentStep.value = 'delivery'
-      toast.info('Complete seu cadastro selecionando as opções abaixo', { timeout: 3000 })
+    
+    // Enviar código de verificação para o email
+    const codeSent = await sendVerificationCode()
+    
+    if (codeSent) {
+      // Avançar para etapa de verificação
+      currentStep.value = 'codeVerification'
+      // Limpar código anterior
+      verificationCodeDigits.value = ['', '', '', '', '', '']
     }
   } catch (error) {
-    console.error('Erro ao verificar usuário:', error)
-    toast.error('Erro ao verificar dados. Tente novamente.', { timeout: 3000 })
+    console.error('Erro ao processar:', error)
+    toast.error('Erro ao processar. Tente novamente.', { timeout: 3000 })
   } finally {
     isLoading.value = false
-  }
-}
-
-// MÉTODO PARA LOGIN DE USUÁRIO EXISTENTE
-const handleExistingUserLogin = async (cleanWhatsapp) => {
-  try {
-    console.log('🔍 Login de cliente existente com WhatsApp:', cleanWhatsapp)
-    
-    // O loginExistingUser já faz tudo: busca dados, autentica, carrega endereços
-    const success = await userStore.loginExistingUser(cleanWhatsapp)
-    
-    if (success) {
-      console.log('✅ Login realizado! Dados carregados:', {
-        deliveryMethod: userStore.deliveryMethod,
-        paymentMethod: userStore.paymentMethod,
-        selectedAddress: userStore.selectedAddress
-      })
-      
-      // Disparar eventos
-      window.dispatchEvent(new CustomEvent('force-cart-update', { 
-        detail: { source: 'identify-modal', timestamp: Date.now() } 
-      }))
-      
-      emit('submit', {
-        isExistingUser: true,
-        whatsapp: userStore.whatsapp,
-        fullName: userStore.fullName,
-        deliveryMethod: userStore.deliveryMethod,
-        paymentMethod: userStore.paymentMethod,
-        selectedAddress: userStore.selectedAddress
-      })
-      
-      close()
-      toast.success(`Bem-vindo de volta, ${userStore.fullName}!`)
-    } else {
-      console.log('❌ Cliente não encontrado ou erro no login')
-      toast.error('Usuário não encontrado. Verifique seus dados.')
-    }
-  } catch (error) {
-    console.error('❌ Erro ao fazer login:', error)
-    toast.error('Erro ao fazer login. Tente novamente.')
   }
 }
 
@@ -472,6 +652,7 @@ const logout = async () => {
   isLoggedIn.value = false
   whatsapp.value = ''
   fullName.value = ''
+  email.value = ''
   tempPaymentMethod.value = ''
   tempDeliveryMethod.value = null
   isRegistrationMode.value = false
@@ -499,7 +680,6 @@ const submitForm = async () => {
   
   // 🔥 SÓ BUSCA ENDEREÇO SE FOR DELIVERY
   if (tempDeliveryMethod.value.value === 'delivery') {
-    // Busca endereço do localStorage (modo cadastro)
     const storedAddresses = localStorage.getItem('addresses')
     if (storedAddresses) {
       const addresses = JSON.parse(storedAddresses)
@@ -507,7 +687,6 @@ const submitForm = async () => {
       console.log('📦 Endereço encontrado no localStorage:', selectedAddress)
     }
     
-    // Se não encontrou endereço nos addresses, tenta no userData
     if (!selectedAddress) {
       const savedAddress = localStorage.getItem('selectedAddress')
       if (savedAddress) {
@@ -516,7 +695,6 @@ const submitForm = async () => {
       }
     }
 
-    // Se for delivery e não tem endereço, abre modal
     if (!selectedAddress) {
       console.log('⚠️ Nenhum endereço encontrado para delivery, abrindo modal')
       pendingAddressSelection.value = true
@@ -525,7 +703,6 @@ const submitForm = async () => {
       return
     }
   } else {
-    // 🔥 Se for pickup ou local, NÃO precisa de endereço
     console.log('✅ Método de entrega:', tempDeliveryMethod.value.value, '- não requer endereço')
   }
 
@@ -534,10 +711,10 @@ const submitForm = async () => {
   const data = {
     whatsapp: cleanWhatsapp,
     fullName: fullName.value,
-    email: '',
+    email: email.value,
     deliveryMethod: tempDeliveryMethod.value,
     paymentMethod: tempPaymentMethod.value,
-    selectedAddress: selectedAddress // Pode ser null para pickup/local
+    selectedAddress: selectedAddress
   }
 
   try {
@@ -548,10 +725,10 @@ const submitForm = async () => {
     console.log('✅ Resposta do registro:', response.data)
     
     if (response.data.success) {
-      // Atualiza o userStore com os dados
       userStore.login({
         fullName: fullName.value,
         whatsapp: whatsapp.value,
+        email: email.value,
         isLogged: true,
         deliveryMethod: tempDeliveryMethod.value,
         paymentMethod: tempPaymentMethod.value,
@@ -561,7 +738,6 @@ const submitForm = async () => {
       
       isLoggedIn.value = true
       
-      // Disparar eventos para sincronizar o Cart
       window.dispatchEvent(new CustomEvent('addresses-updated'))
       window.dispatchEvent(new CustomEvent('user-data-updated', { 
         detail: { 
@@ -576,6 +752,7 @@ const submitForm = async () => {
         detail: { 
           fullName: fullName.value, 
           whatsapp: whatsapp.value,
+          email: email.value,
           isLogged: true,
           deliveryMethod: tempDeliveryMethod.value,
           paymentMethod: tempPaymentMethod.value,
@@ -611,6 +788,8 @@ const backToForm = () => {
   tempPaymentMethod.value = ''
   isRegistrationMode.value = false
   showRegistrationForm.value = false
+  verificationCodeDigits.value = ['', '', '', '', '', '']
+  verificationToken.value = null
 }
 
 // Watchers
@@ -622,12 +801,15 @@ watch(() => props.modelValue, async (open) => {
     tempPaymentMethod.value = ''
     isRegistrationMode.value = false
     showRegistrationForm.value = false
+    verificationCodeDigits.value = ['', '', '', '', '', '']
+    verificationToken.value = null
     
     checkIfLoggedIn()
     
     if (!isLoggedIn.value) {
       fullName.value = ''
       whatsapp.value = ''
+      email.value = ''
     }
     
     await nextTick()
@@ -638,6 +820,8 @@ watch(() => props.modelValue, async (open) => {
     document.body.style.overflow = 'hidden'
   } else {
     document.body.style.overflow = ''
+    if (resendTimer) clearInterval(resendTimer)
+    resendCountdown.value = 0
   }
 })
 
@@ -660,136 +844,20 @@ watch(() => userStore.selectedAddress, (newVal) => {
 </script>
 
 <style scoped>
-    .identify-modal {
-      position: relative;
-      z-index: 1060;
-    }
-
-    .modal-overlay {
-      z-index: 1055;
-    }
-    .cep-box {
-      width: 45px;
-      height: 45px;
-      border-radius: 8px;
-      font-size: 20px;
-      text-align: center;
-      font-weight: 600;
-    }
-
-    .cep-box:focus {
-      border-color: var(--bg-orange);
-      outline: none;
-      box-shadow: 0 0 0 2px rgba(255, 140, 0, 0.2);
-    }
-    
-    .selected-option-card {
-      width: 100%;
-      text-align: center;
-    }
-    
-    .payment-form-title{
-      font-size: clamp(0.938rem, 1vw, 1rem);
-    }
-    .svg{
-        width: 16px;
-    }
-    .modal-title{
-      font-size: clamp(1rem, 1.125vw, 1.125rem);
-    }
-    .header-modal{
-        background: #FFF1C3;
-    }
-    .modal-content {
-        border-radius: 0px;
-        max-width: 680px;
-        width: 100%;
-    }
-
-    .modal-body input {
-        height: 42px;
-    }
-    
-    .options-box {
-      border: 1px solid #e5e5e5;
-      border-radius: 10px;
-      background: #fff;
-      padding: 8px;
-    }
-    
-    .option-card {
-      display: flex;
-      gap: 10px;
-      padding: 10px;
-      border-radius: 8px;
-      cursor: pointer;
-      align-items: center;
-      border: 1px solid transparent;
-      margin-bottom: 4px;
-    }
-    
-    .option-card:last-child {
-      margin-bottom: 0;
-    }
-    
-    .option-card:hover {
-      background: #f5f5f5;
-    }
-    
-    .option-card input {
-      accent-color: #A4268E;
-    }
-    .loading-spinner{
-      top: 0;
-      left: 0;
-    }
-    .spinner-border{
-      color: #A4268E;
-    }
-    .option-card small {
-      display: block;
-      color: #777;
-      font-size: 0.75rem;
-    }
-    
-    .form-label {
-      font-weight: 500;
-      margin-bottom: 8px;
-      display: block;
-    }
-
-  .step-section {
-    transition: all 0.3s ease;
-    animation: fadeIn 0.3s ease;
-  }
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* Estilos adicionais para o código */
+.code-digit {
+  width: 50px;
+  height: 60px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
 }
 
-.btn-primary, .btn-secondary {
-  margin-top: 8px;
-}
-
-.loading-overlay {
-  position: relative;
-  opacity: 0.6;
-  pointer-events: none;
-}
-@media (max-width: 475px) {
-  .brasil-icon{
-    width: 20px;
-  }
-  .input-group-text.rounded, .modal-body input{
-    font-size: 0.983rem;
-    height: 40px;
+@media (max-width: 576px) {
+  .code-digit {
+    width: 40px;
+    height: 50px;
+    font-size: 20px;
   }
 }
 </style>

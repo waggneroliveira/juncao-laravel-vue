@@ -40,6 +40,10 @@ Route::get('/senha-alterada-com-sucesso', function () {
     return view('emails.password-success-client-reset');
 })->name('client-success-reset-password');
 
+// ========== ROTAS VERIFICAÇÃO DE CODIGO ==========
+Route::post('/identify/send-code', [AuthClientController::class, 'sendVerificationCode']);
+Route::post('/identify/verify-code', [AuthClientController::class, 'verifyCode']);
+
 // Rotas públicas do Identify
 Route::prefix('identify')->group(function () {
     Route::post('/check', [AuthClientController::class, 'checkUser']);
