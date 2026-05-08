@@ -125,6 +125,15 @@ export const useUserStore = defineStore('user', {
       }
     },
     
+    syncWithProfile(profileData) {
+      if (profileData) {
+        this.fullName = profileData.nome || this.fullName
+        this.whatsapp = profileData.telefone || this.whatsapp
+        this.email = profileData.email || this.email
+        this.saveToStorage()
+        this.dispatchEvents()
+      }
+    },
     /**
      * 🔥 CARREGAR ENDEREÇOS DO USUÁRIO (após autenticação)
      */
@@ -310,61 +319,58 @@ export const useUserStore = defineStore('user', {
     /**
      * Logout - Limpa completamente todos os dados
      */
- // stores/useUserStore.js - CORREÇÃO do logout
-
-
-async logout() {
-  try {
-    await axios.get('/logout')
-  } catch (error) {
-    console.error('Erro no logout:', error)
-  }
-  
-  // Limpar estado do store
-  this.id = null
-  this.fullName = ''
-  this.whatsapp = ''
-  this.email = ''
-  this.isLogged = false
-  this.selectedAddress = null
-  this.deliveryMethod = null
-  this.paymentMethod = null
-  
-  // 🔥 LIMPAR TODAS AS CHAVES DO LOCALSTORAGE
-  const keysToRemove = [
-    'userData',           // Dados do usuário
-    'selectedAddressId',  // ID do endereço selecionado
-    'selectedAddress',    // Endereço selecionado
-    'selectedDeliveryMethod', // Método de entrega
-    'selectedPaymentMethod',  // Método de pagamento
-    'addresses',          // Lista de endereços
-    'addressesUpdated',   // Flag de atualização
-    'user'                // Dados do persist (Pinia)
-  ]
-  
-  keysToRemove.forEach(key => {
-    localStorage.removeItem(key)
-    console.log(`🗑️ Removido do localStorage: ${key}`)
-  })
-  
-  // 🔥 LIMPAR TAMBÉM O SESSION STORAGE SE HOUVER
-  sessionStorage.clear()
-  
-  // Disparar eventos para atualizar o Cart
-  this.dispatchEvents()
-  
-  // 🔥 DISPARAR EVENTO ESPECÍFICO DE LOGOUT
-  window.dispatchEvent(new CustomEvent('user-logout', { 
-    detail: { isLogged: false, timestamp: Date.now() } 
-  }))
-  
-  // 🔥 FORÇAR ATUALIZAÇÃO DO CART
-  window.dispatchEvent(new CustomEvent('force-cart-update', { 
-    detail: { source: 'logout', timestamp: Date.now() } 
-  }))
-  
-  console.log('👋 Usuário deslogado - localStorage limpo')
-},
+    async logout() {
+      try {
+        await axios.get('/logout')
+      } catch (error) {
+        console.error('Erro no logout:', error)
+      }
+      
+      // Limpar estado do store
+      this.id = null
+      this.fullName = ''
+      this.whatsapp = ''
+      this.email = ''
+      this.isLogged = false
+      this.selectedAddress = null
+      this.deliveryMethod = null
+      this.paymentMethod = null
+      
+      // 🔥 LIMPAR TODAS AS CHAVES DO LOCALSTORAGE
+      const keysToRemove = [
+        'userData',           // Dados do usuário
+        'selectedAddressId',  // ID do endereço selecionado
+        'selectedAddress',    // Endereço selecionado
+        'selectedDeliveryMethod', // Método de entrega
+        'selectedPaymentMethod',  // Método de pagamento
+        'addresses',          // Lista de endereços
+        'addressesUpdated',   // Flag de atualização
+        'user'                // Dados do persist (Pinia)
+      ]
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key)
+        console.log(`🗑️ Removido do localStorage: ${key}`)
+      })
+      
+      // 🔥 LIMPAR TAMBÉM O SESSION STORAGE SE HOUVER
+      sessionStorage.clear()
+      
+      // Disparar eventos para atualizar o Cart
+      this.dispatchEvents()
+      
+      // 🔥 DISPARAR EVENTO ESPECÍFICO DE LOGOUT
+      window.dispatchEvent(new CustomEvent('user-logout', { 
+        detail: { isLogged: false, timestamp: Date.now() } 
+      }))
+      
+      // 🔥 FORÇAR ATUALIZAÇÃO DO CART
+      window.dispatchEvent(new CustomEvent('force-cart-update', { 
+        detail: { source: 'logout', timestamp: Date.now() } 
+      }))
+      
+      console.log('👋 Usuário deslogado - localStorage limpo')
+    },
     
     saveToStorage() {
       localStorage.setItem('userData', JSON.stringify({

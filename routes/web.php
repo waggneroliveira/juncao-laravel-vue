@@ -70,6 +70,11 @@ Route::middleware('auth:client')->group(function () {
     
     // Endereços do cliente
     Route::prefix('client')->group(function () {
+        Route::get('/profile', [ClientController::class, 'getProfile']);
+        Route::put('/profile', [ClientController::class, 'updateProfile']);
+        Route::post('/profile/avatar', [ClientController::class, 'updateAvatar']);
+        Route::delete('/profile/avatar', [ClientController::class, 'deleteAvatar']);
+        
         Route::get('/addresses', [ClientAddressController::class, 'index']);
         Route::post('/addresses', [ClientAddressController::class, 'store']);
         Route::put('/addresses/{id}', [ClientAddressController::class, 'update']);

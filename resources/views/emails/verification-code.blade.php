@@ -60,7 +60,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">🍕 Seu Pedido</div>
+            <div class="logo">🍕 Delifast</div>
         </div>
         
         <div class="content">
@@ -75,7 +75,7 @@
         </div>
         
         <div class="footer">
-            <p>© {{ date('Y') }} Seu Pedido. Todos os direitos reservados.</p>
+            <p>© {{ date('Y') }} Delifast. Todos os direitos reservados.</p>
             <p class="warning">Este é um e-mail automático, por favor não responda.</p>
         </div>
     </div>

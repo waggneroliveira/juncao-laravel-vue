@@ -17,16 +17,7 @@
           <button type="button" class="btn-close" @click="close"></button>
         </div>
 
-        <div class="modal-body">
-
-          <!-- Input de arquivo ÚNICO fora das views condicionais -->
-          <input 
-            type="file" 
-            ref="avatarInput" 
-            style="display: none" 
-            accept="image/jpeg,image/png,image/jpg,image/gif"
-            @change="handleImageUpload"
-          >
+        <div class="modal-body" :class="{ 'loading-overlay': isLoading }">
 
           <!-- VISUALIZAÇÃO DO PERFIL -->
           <div v-if="view === 'view'" class="profile-view">
@@ -69,6 +60,13 @@
                 <div class="info-value">{{ formatPhone(profile.telefone) || 'Não informado' }}</div>
               </div>
 
+              <div class="info-card mb-3">
+                <div class="info-label">
+                  <i class="bi bi-envelope"></i>
+                  <span>E-mail</span>
+                </div>
+                <div class="info-value">{{ profile.email || 'Não informado' }}</div>
+              </div>
 
               <div class="info-card mb-3" v-if="profile.genero">
                 <div class="info-label">
@@ -142,7 +140,7 @@
               </div>
 
               <div class="col-md-12">
-                <label class="form-label">E-mail <small>(opicional)</small></label>
+                <label class="form-label">E-mail</label>
                 <input 
                   v-model="form.email" 
                   class="form-control" 
@@ -153,19 +151,20 @@
                 <div class="invalid-feedback" v-if="errors.email">{{ errors.email }}</div>
               </div>
 
-              <div class="col-md-6">
-                <label class="form-label">Data de Nascimento <small>(opicional)</small></label>
+              <div class="col-md-6 d-none">
+                <label class="form-label">Data de Nascimento <small>(opcional)</small></label>
                 <input 
                   v-model="form.dataNascimento" 
                   class="form-control" 
                   type="date"
+                  disabled
                   :max="getMaxDate()"
                 >
               </div>
 
-              <div class="col-md-6">
-                <label class="form-label">Gênero <small>(opicional)</small></label>
-                <select v-model="form.genero" class="form-select">
+              <div class="col-md-6 d-none">
+                <label class="form-label">Gênero <small>(opcional)</small></label>
+                <select v-model="form.genero" class="form-select disabled">
                   <option value="">Selecione</option>
                   <option value="masculino">Masculino</option>
                   <option value="feminino">Feminino</option>
@@ -180,23 +179,42 @@
               <button class="btn btn-secondary" @click="cancelEdit">
                 Cancelar
               </button>
-              <button class="btn btn-primary ms-2" @click="saveProfile">
+              <button class="btn btn-primary ms-2" @click="saveProfile" :disabled="isLoading">
+                <span v-if="isLoading" class="spinner-border spinner-border-sm me-2"></span>
                 Salvar Perfil
               </button>
             </div>
           </div>
 
+          <!-- Indicador de loading -->
+          <div v-if="isLoading" class="loading-spinner position-absolute d-flex justify-content-center align-items-center w-100 h-100">
+            <div class="spinner-border" role="status">
+              <span class="visually-hidden">Carregando...</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- Input de arquivo oculto -->
+    <input 
+      type="file" 
+      ref="avatarInput" 
+      style="display: none" 
+      accept="image/jpeg,image/png,image/jpg,image/gif,image/webp"
+      @change="handleImageUpload"
+    >
   </div>
 </template>
 
 <script setup>
 import { ref, watch, onMounted, nextTick } from 'vue'
 import { useToast } from 'vue-toastification'
+import { useUserStore } from '@/stores/useUserStore'
+import axios from 'axios'
 
 const toast = useToast()
+const userStore = useUserStore()
 
 const props = defineProps({
   modelValue: Boolean
@@ -204,12 +222,14 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'profile-updated'])
 
-const view = ref('view') // 'view' ou 'edit'
+const view = ref('view')
 const avatarInput = ref(null)
 const errors = ref({})
+const isLoading = ref(false)
 
 // Perfil do usuário
 const profile = ref({
+  id: null,
   nome: '',
   telefone: '',
   email: '',
@@ -228,68 +248,152 @@ const form = ref({
   avatar: null
 })
 
-// Carregar perfil do localStorage
-const loadProfile = () => {
-  const savedProfile = localStorage.getItem('userProfile')
-  if (savedProfile) {
-    profile.value = JSON.parse(savedProfile)
-    // Reset do formulário com os dados atuais
-    form.value = { ...profile.value }
-  } else {
-    // Perfil padrão
-    const defaultProfile = {
-      nome: '',
-      telefone: '',
-      email: '',
-      dataNascimento: '',
-      genero: '',
-      avatar: null
+// Buscar perfil do backend
+const loadProfile = async () => {
+  if (!userStore.isLogged) return
+  
+  isLoading.value = true
+  try {
+    const response = await axios.get('/client/profile')
+    
+    if (response.data.success) {
+      const data = response.data.profile
+      profile.value = {
+        id: data.id,
+        nome: data.nome,
+        telefone: data.telefone,
+        email: data.email,
+        dataNascimento: data.data_nascimento || '',
+        genero: data.genero || '',
+        avatar: data.avatar
+      }
+      form.value = { ...profile.value }
+      
+      // Sincronizar com userStore
+      if (userStore.id === data.id) {
+        userStore.fullName = data.nome
+        userStore.whatsapp = data.telefone
+        userStore.email = data.email
+        userStore.saveToStorage()
+      }
     }
-    profile.value = defaultProfile
-    form.value = { ...defaultProfile }
+  } catch (error) {
+    console.error('Erro ao carregar perfil:', error)
+    toast.error('Erro ao carregar perfil')
+  } finally {
+    isLoading.value = false
   }
 }
 
-// Salvar perfil no localStorage
-const saveProfileToStorage = () => {
-  localStorage.setItem('userProfile', JSON.stringify(profile.value))
-  emit('profile-updated', profile.value)
-  
-  // Disparar evento para outros componentes
-  window.dispatchEvent(new CustomEvent('profile-updated'))
-  localStorage.setItem('profileUpdated', Date.now().toString())
+// Salvar perfil no backend
+const saveProfileToBackend = async () => {
+  isLoading.value = true
+  try {
+    const response = await axios.put('/client/profile', {
+      nome: form.value.nome,
+      telefone: form.value.telefone,
+      email: form.value.email,
+      data_nascimento: form.value.dataNascimento,
+      genero: form.value.genero
+    })
+    
+    if (response.data.success) {
+      const data = response.data.profile
+      profile.value = {
+        id: data.id,
+        nome: data.nome,
+        telefone: data.telefone,
+        email: data.email,
+        dataNascimento: data.data_nascimento,
+        genero: data.genero,
+        avatar: data.avatar
+      }
+      
+      // Sincronizar com userStore
+      userStore.fullName = data.nome
+      userStore.whatsapp = data.telefone
+      userStore.email = data.email
+      userStore.saveToStorage()
+      
+      // Disparar eventos
+      emit('profile-updated', profile.value)
+      window.dispatchEvent(new CustomEvent('profile-updated', { detail: profile.value }))
+      window.dispatchEvent(new CustomEvent('user-data-updated', { 
+        detail: { 
+          fullName: data.nome,
+          whatsapp: data.telefone,
+          email: data.email
+        } 
+      }))
+      
+      toast.success('Perfil atualizado com sucesso!')
+      return true
+    }
+  } catch (error) {
+    console.error('Erro ao salvar perfil:', error)
+    if (error.response?.data?.errors) {
+      errors.value = error.response.data.errors
+      toast.error('Corrija os erros no formulário')
+    } else {
+      toast.error(error.response?.data?.message || 'Erro ao salvar perfil')
+    }
+    return false
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Upload de avatar
+const uploadAvatar = async (file) => {
+  isLoading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('avatar', file)
+    
+    const response = await axios.post('/client/profile/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    
+    if (response.data.success) {
+      const avatarUrl = response.data.avatar
+      profile.value.avatar = avatarUrl
+      if (view.value === 'edit') {
+        form.value.avatar = avatarUrl
+      }
+      
+      // Atualizar userStore se necessário
+      window.dispatchEvent(new CustomEvent('user-data-updated', { 
+        detail: { avatar: avatarUrl } 
+      }))
+      
+      toast.success('Foto atualizada com sucesso!')
+      return true
+    }
+  } catch (error) {
+    console.error('Erro ao fazer upload:', error)
+    toast.error(error.response?.data?.message || 'Erro ao fazer upload da imagem')
+    return false
+  } finally {
+    isLoading.value = false
+  }
 }
 
 // Formatar telefone
 const handlePhoneInput = () => {
   let v = form.value.telefone.replace(/\D/g, '')
-  
-  if (v.length > 11) {
-    v = v.slice(0, 11)
-  }
-  
-  if (v.length > 0) {
-    v = v.replace(/^(\d{2})(\d)/g, '($1) $2')
-  }
-  
-  if (v.length > 10) {
-    v = v.replace(/^(\d{2}) (\d{5})(\d{4})$/, '($1) $2-$3')
-  } else if (v.length > 6) {
-    v = v.replace(/^(\d{2}) (\d{4})(\d{0,4})$/, '($1) $2-$3')
-  }
-  
+  if (v.length > 11) v = v.slice(0, 11)
+  if (v.length > 0) v = v.replace(/^(\d{2})(\d)/g, '($1) $2')
+  if (v.length > 10) v = v.replace(/^(\d{2}) (\d{5})(\d{4})$/, '($1) $2-$3')
+  else if (v.length > 6) v = v.replace(/^(\d{2}) (\d{4})(\d{0,4})$/, '($1) $2-$3')
   form.value.telefone = v
 }
 
 const formatPhone = (phone) => {
   if (!phone) return ''
-  return phone
-}
-
-const formatDate = (date) => {
-  if (!date) return ''
-  const [year, month, day] = date.split('-')
-  return `${day}/${month}/${year}`
+  let v = phone.toString()
+  if (v.length === 11) return `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`
+  if (v.length === 10) return `(${v.slice(0,2)}) ${v.slice(2,6)}-${v.slice(6)}`
+  return v
 }
 
 const formatGenero = (genero) => {
@@ -305,7 +409,7 @@ const formatGenero = (genero) => {
 
 const getMaxDate = () => {
   const today = new Date()
-  const year = today.getFullYear() - 18 // Maior de 18 anos
+  const year = today.getFullYear() - 18
   return `${year}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 }
 
@@ -313,63 +417,55 @@ const getMaxDate = () => {
 const triggerImageUpload = () => {
   if (avatarInput.value) {
     avatarInput.value.click()
-  } else {
-    // Fallback: tenta encontrar qualquer input file no modal
-    const fileInput = document.querySelector('input[type="file"][accept*="image"]')
-    if (fileInput) {
-      fileInput.click()
-    } else {
-      toast.error('Erro ao abrir seletor de imagem', { timeout: 3000 })
-    }
   }
 }
 
-const handleImageUpload = (event) => {
+const handleImageUpload = async (event) => {
   const file = event.target.files[0]
+  if (!file) return
   
-  if (file && file.type.startsWith('image/')) {
-    // Valida tamanho máximo (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('A imagem deve ter no máximo 5MB', { timeout: 3000 })
-      return
-    }
-    
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const avatarUrl = e.target.result
-      if (view.value === 'edit') {
-        form.value.avatar = avatarUrl
-        toast.success('Foto alterada! Clique em "Salvar Perfil" para confirmar.', { timeout: 3000 })
-      } else {
-        profile.value.avatar = avatarUrl
-        form.value.avatar = avatarUrl
-        saveProfileToStorage()
-        toast.success('Foto atualizada com sucesso!', { timeout: 3000 })
-      }
-    }
-    reader.onerror = () => {
-      toast.error('Erro ao carregar a imagem', { timeout: 3000 })
-    }
-    reader.readAsDataURL(file)
-    
-    // Limpa o input para permitir o mesmo arquivo novamente
-    event.target.value = ''
-  } else {
-    toast.error('Por favor, selecione uma imagem válida (JPG, PNG, GIF)', { timeout: 3000 })
+  if (!file.type.startsWith('image/')) {
+    toast.error('Por favor, selecione uma imagem válida')
+    return
   }
+  
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('A imagem deve ter no máximo 5MB')
+    return
+  }
+  
+  // Preview imediato
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    if (view.value === 'edit') {
+      form.value.avatar = e.target.result
+    } else {
+      profile.value.avatar = e.target.result
+    }
+  }
+  reader.readAsDataURL(file)
+  
+  // Upload para o servidor
+  const success = await uploadAvatar(file)
+  if (!success && view.value !== 'edit') {
+    // Se falhou, recarregar o avatar antigo
+    await loadProfile()
+  }
+  
+  event.target.value = ''
 }
 
 // Validação
 const validateForm = () => {
   errors.value = {}
   
-  // Validação do Nome (obrigatório)
+  // 🔥 VALIDAÇÃO DO NOME - APENAS PRIMEIRO NOME (sem exigir sobrenome)
   if (!form.value.nome || form.value.nome.trim() === '') {
-    errors.value.nome = 'Nome completo é obrigatório'
+    errors.value.nome = 'Nome é obrigatório'
   } else if (form.value.nome.trim().length < 3) {
     errors.value.nome = 'Nome deve ter no mínimo 3 caracteres'
-  } else if (form.value.nome.trim().split(' ').length < 2) {
-    errors.value.nome = 'Por favor, informe seu nome completo'
+  } else if (form.value.nome.trim().length > 100) {
+    errors.value.nome = 'Nome deve ter no máximo 100 caracteres'
   }
   
   // Validação do Telefone (obrigatório)
@@ -382,7 +478,7 @@ const validateForm = () => {
     }
   }
   
-  // Validação do E-mail (opcional, mas se preenchido deve ser válido)
+  // Validação do E-mail (opcional)
   if (form.value.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.email)) {
     errors.value.email = 'E-mail inválido'
   }
@@ -391,27 +487,26 @@ const validateForm = () => {
 }
 
 // Ações do perfil
-const editProfile = async () => {
+const editProfile = () => {
   form.value = { ...profile.value }
   view.value = 'edit'
-  // Aguarda o DOM ser atualizado
-  await nextTick()
 }
 
-const cancelEdit = async () => {
+const cancelEdit = () => {
   form.value = { ...profile.value }
   view.value = 'view'
-  await nextTick()
+  errors.value = {}
 }
 
-const saveProfile = () => {
+const saveProfile = async () => {
   if (validateForm()) {
-    profile.value = { ...form.value }
-    saveProfileToStorage()
-    view.value = 'view'
-    toast.success('Perfil atualizado com sucesso!', { timeout: 3000 })
+    const success = await saveProfileToBackend()
+    if (success) {
+      view.value = 'view'
+      errors.value = {}
+    }
   } else {
-    toast.error('Por favor, corrija os erros no formulário', { timeout: 3000 })
+    toast.error('Por favor, corrija os erros no formulário')
   }
 }
 
@@ -419,79 +514,55 @@ const saveProfile = () => {
 const close = () => {
   emit('update:modelValue', false)
   view.value = 'view'
-  form.value = { ...profile.value }
   errors.value = {}
 }
 
 // Observar quando o modal abre
 watch(() => props.modelValue, async (newValue) => {
-  if (newValue) {
-    loadProfile()
+  if (newValue && userStore.isLogged) {
+    await loadProfile()
     view.value = 'view'
     errors.value = {}
-    // Aguarda a renderização do DOM
-    await nextTick()
   }
 })
 
-// Inicializar
 onMounted(() => {
-  loadProfile()
+  // Se o modal for aberto programaticamente
+  if (props.modelValue && userStore.isLogged) {
+    loadProfile()
+  }
 })
 </script>
 
 <style scoped>
 .modal-overlay {
+  background: rgba(0, 0, 0, 0.5);
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  backdrop-filter: blur(4px);
+  width: 100%;
+  height: 100%;
+  z-index: 1050;
 }
 
-.modal-container {
-  background: white;
-  border-radius: 16px;
-  width: 90%;
-  max-width: 700px;
-  max-height: 85vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 35px rgba(0, 0, 0, 0.2);
-  animation: slideIn 0.3s ease-out;
+.modal-content {
+  border-radius: 12px;
   overflow: hidden;
 }
 
-@keyframes slideIn {
-  from {
-    transform: translateY(-30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+.loading-overlay {
+  position: relative;
+  min-height: 300px;
 }
 
-.modal-title {
-  font-size: clamp(1rem, 1.125vw, 1.125rem);
+.loading-spinner {
+  background: rgba(255, 255, 255, 0.8);
+  top: 0;
+  left: 0;
+  z-index: 10;
+  border-radius: 12px;
 }
 
-h6, .form-label, .form-check-label {
-  font-size: clamp(0.938rem, 1vw, 1rem);
-}
-
-.text-danger {
-  color: #dc3545;
-}
-
-/* Avatar estilos */
 .avatar-container {
   position: relative;
   width: 120px;
@@ -500,12 +571,6 @@ h6, .form-label, .form-check-label {
   cursor: pointer;
   border-radius: 50%;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  transition: transform 0.2s ease;
-}
-
-.avatar-container:hover {
-  transform: scale(1.05);
 }
 
 .avatar-img {
@@ -521,11 +586,8 @@ h6, .form-label, .form-check-label {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 48px;
   color: white;
-}
-
-.avatar-placeholder i {
-  font-size: 60px;
 }
 
 .avatar-edit-overlay {
@@ -533,20 +595,20 @@ h6, .form-label, .form-check-label {
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(0,0,0,0.7);
-  color: white;
-  text-align: center;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 8px;
-  font-size: 20px;
-  transform: translateY(100%);
-  transition: transform 0.3s ease;
+  opacity: 0;
+  transition: opacity 0.3s;
+  color: white;
 }
 
 .avatar-container:hover .avatar-edit-overlay {
-  transform: translateY(0);
+  opacity: 1;
 }
 
-/* Avatar para edição */
 .avatar-container-edit {
   position: relative;
   width: 100px;
@@ -555,12 +617,6 @@ h6, .form-label, .form-check-label {
   cursor: pointer;
   border-radius: 50%;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  transition: transform 0.2s ease;
-}
-
-.avatar-container-edit:hover {
-  transform: scale(1.05);
 }
 
 .avatar-img-edit {
@@ -576,11 +632,8 @@ h6, .form-label, .form-check-label {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 40px;
   color: white;
-}
-
-.avatar-placeholder-edit i {
-  font-size: 50px;
 }
 
 .avatar-edit-overlay-edit {
@@ -588,120 +641,39 @@ h6, .form-label, .form-check-label {
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(0,0,0,0.7);
-  color: white;
-  text-align: center;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 6px;
-  font-size: 16px;
-  transform: translateY(100%);
-  transition: transform 0.3s ease;
+  opacity: 0;
+  transition: opacity 0.3s;
+  color: white;
+  font-size: 14px;
 }
 
 .avatar-container-edit:hover .avatar-edit-overlay-edit {
-  transform: translateY(0);
+  opacity: 1;
 }
 
-/* Cards de informação */
 .info-card {
   background: #f8f9fa;
-  border-radius: 10px;
-  padding: 15px;
-  transition: all 0.3s ease;
-}
-
-.info-card:hover {
-  background: #f1f3f5;
-  transform: translateX(5px);
+  border-radius: 8px;
+  padding: 12px 16px;
 }
 
 .info-label {
-  font-size: 0.85rem;
-  color: var(--text-medium);
-  margin-bottom: 5px;
+  font-size: 12px;
+  color: #6c757d;
+  margin-bottom: 4px;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.info-label i {
-  font-size: 1rem;
-}
-
 .info-value {
-  font-size: 1rem;
+  font-size: 16px;
   font-weight: 500;
   color: #212529;
-  margin-left: 24px;
-}
-
-/* Botões */
-.btn-primary {
-  border-color: var(--primary) !important;
-  color: #FFF !important;
-  font-weight: 600;
-}
-
-.btn-primary:hover {
-  background: var(--bg-primary-hover) !important;
-  border-color: var(--bg-primary-hover) !important;
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background: var(--text-medium) !important;
-  border-color: var(--text-medium) !important;
-}
-
-.btn-secondary:hover {
-  background: #5a6268 !important;
-  transform: translateY(-1px);
-}
-
-.btn-outline-secondary {
-  color: var(--text-medium) !important;
-  border-color: var(--text-medium) !important;
-}
-
-.btn-outline-secondary:hover {
-  background: var(--text-medium) !important;
-  color: #fff !important;
-  transform: translateY(-1px);
-}
-
-/* Animações */
-.profile-view {
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Responsividade */
-@media (max-width: 768px) {
-  .avatar-container {
-    width: 100px;
-    height: 100px;
-  }
-  
-  .avatar-container-edit {
-    width: 80px;
-    height: 80px;
-  }
-  
-  .info-value {
-    font-size: 0.9rem;
-  }
-  
-  .info-label {
-    font-size: 0.75rem;
-  }
 }
 </style>
