@@ -76,7 +76,7 @@
                 placeholder="exemplo@email.com"
                 :disabled="isLoading"
               >
-              <small class="text-muted">Enviaremos um código de verificação para este e-mail</small>
+              <small class="text-muted a-partir">Enviaremos um código de verificação para este e-mail</small>
             </div>
 
             <button 
@@ -741,6 +741,9 @@ watch(() => isRegistrationMode.value, (newVal) => {
 </script>
 
 <style scoped>
+  .a-partir{
+    font-size: clamp(0.625rem, 0.813vw, 0.813rem);
+  }
 /* Estilos adicionais para o código */
 .code-digit {
   width: 50px;
