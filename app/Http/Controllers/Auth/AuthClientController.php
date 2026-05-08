@@ -684,10 +684,27 @@ class AuthClientController extends Controller
                 ], 422);
             }
 
-            $email = $request->email;
+            $email = trim($request->email);
             $whatsapp = preg_replace('/\D/', '', $request->whatsapp);
-            $fullName = $request->fullName;
+            $fullName = trim($request->fullName);
 
+            // 🔥 VERIFICAR NA MODEL CLIENT (NÃO NO VERIFICATIONCODE)
+            $existingClient = Client::where('phone', $whatsapp)->first();
+            
+            if ($existingClient) {
+                // Verificar se os dados conferem com o cadastro do cliente
+                $emailCorreto = ($existingClient->email === $email);
+                $nomeCorreto = ($existingClient->name === $fullName);
+                            
+                if (!$emailCorreto || !$nomeCorreto) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Dados incorretos. Este número de WhatsApp já está cadastrado com outro e-mail ou nome.'
+                    ], 409);
+                }
+            }
+
+            // Se não existe cliente OU cliente existe com dados corretos, prossegue com o código de verificação
             // Verificar se já existe um código válido não usado
             $existingCode = VerificationCode::where('email', $email)
                 ->where('used', false)
@@ -695,11 +712,9 @@ class AuthClientController extends Controller
                 ->first();
 
             if ($existingCode) {
-                // Reenviar o mesmo código
                 $code = $existingCode->code;
                 $token = $existingCode->token;
             } else {
-                // Gerar novo código de 6 dígitos
                 $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
                 $token = Str::random(64);
 
@@ -708,7 +723,7 @@ class AuthClientController extends Controller
                     ->where('expires_at', '<', now())
                     ->delete();
 
-                // Criar novo registro
+                // Criar novo registro de código
                 VerificationCode::create([
                     'email' => $email,
                     'whatsapp' => $whatsapp,
@@ -720,14 +735,11 @@ class AuthClientController extends Controller
                 ]);
             }
 
-            // 🔥 BUSCAR CONFIGURAÇÕES DE EMAIL DO BANCO
+            // Enviar email
             $emailSettings = SettingEmail::first();
-            
-            // 🔥 CONFIGURAR O EMAIL SERVICE
             $emailService = new EmailService();
             $emailService->configureAndSend($emailSettings, $request->only('email'));
             
-            // Enviar email
             try {
                 Mail::to($email)->send(new VerificationCodeMail($code, $fullName));
             } catch (\Exception $e) {
