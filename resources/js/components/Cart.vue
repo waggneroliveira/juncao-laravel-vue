@@ -400,7 +400,6 @@
     />
 </template>
 
-
 <script setup>
 import { ref, onMounted, computed, onUnmounted, watch, nextTick } from 'vue'
 import { useToast } from 'vue-toastification'
@@ -412,378 +411,366 @@ import PaymentMethodModal from './PaymentMethodModal.vue'
 import { useCartStore } from '@/stores/useCartStore'
 import { useUserStore } from '@/stores/useUserStore'
 
-// ========== 1. PRIMEIRO: Inicializar stores ==========
+// ========== 1. STORES ==========
 const toast = useToast()
 const cart = useCartStore()
 const userStore = useUserStore()
 
-// ========== 2. SEGUNDO: Declarar TODOS os refs ==========
+// ========== 2. REFS ==========
 const showModal = ref(false)
 const showAddressModal = ref(false)
 const showDeliveryMethodModal = ref(false)
 const showPaymentMethodModal = ref(false)
 const showProductModal = ref(false)
 const selectedProduct = ref(null)
-
-// 🔥 DECLARE O forceUpdate AQUI (antes dos watch e computed)
 const forceUpdate = ref(0)
 
-// ========== 3. TERCEIRO: Computed properties ==========
-// Use computed properties que lêem diretamente do store
+// ========== 3. COMPUTED ==========
 const selectedAddress = computed(() => userStore.selectedAddress)
 const selectedDeliveryMethod = computed(() => userStore.deliveryMethod)
 const selectedPaymentMethod = computed(() => userStore.paymentMethod)
 
-// ========== 4. QUARTO: Funções auxiliares ==========
+const canConfirm = computed(() => {
+  if (!userStore.isLogged) return false
+  if (!selectedDeliveryMethod.value) return false
+  if (selectedDeliveryMethod.value.value === 'delivery' && !selectedAddress.value) return false
+  if (!selectedPaymentMethod.value) return false
+  return true
+})
+
+// ========== 4. FUNÇÕES AUXILIARES ==========
 const getComboItemName = (item, itemId) => {
-    if (!item.comboItems) return itemId
-    const comboItem = item.comboItems.find(i => i.id === itemId)
-    return comboItem ? comboItem.name : itemId
+  if (!item.comboItems) return itemId
+  const comboItem = item.comboItems.find(i => i.id === itemId)
+  return comboItem ? comboItem.name : itemId
 }
 
 const getDeliveryMethodText = () => {
-    if (!selectedDeliveryMethod.value) return 'Selecione uma forma de entrega'
-    if (selectedDeliveryMethod.value.value === 'delivery') {
-        return `Entrega em domicílio • ${selectedDeliveryMethod.value.timeEstimate}`
-    } else if (selectedDeliveryMethod.value.value === 'pickup') {
-        return `Retirada na loja • ${selectedDeliveryMethod.value.timeEstimate}`
-    } else if (selectedDeliveryMethod.value.value === 'local') {
-        return `Consumo no local`
-    }
-    return selectedDeliveryMethod.value.label
+  if (!selectedDeliveryMethod.value) return 'Selecione uma forma de entrega'
+  if (selectedDeliveryMethod.value.value === 'delivery') {
+    return `Entrega em domicílio • ${selectedDeliveryMethod.value.timeEstimate}`
+  } else if (selectedDeliveryMethod.value.value === 'pickup') {
+    return `Retirada na loja • ${selectedDeliveryMethod.value.timeEstimate}`
+  } else if (selectedDeliveryMethod.value.value === 'local') {
+    return `Consumo no local`
+  }
+  return selectedDeliveryMethod.value.label
 }
 
 const getPaymentMethodText = () => {
-    const labels = {
-        card: 'Cartão de Crédito/Débito',
-        pix: 'PIX',
-        cash: 'Dinheiro'
-    }
-    return labels[selectedPaymentMethod.value] || selectedPaymentMethod.value
+  const labels = {
+    card: 'Cartão de Crédito/Débito',
+    pix: 'PIX',
+    cash: 'Dinheiro'
+  }
+  return labels[selectedPaymentMethod.value] || selectedPaymentMethod.value
 }
 
 const getPaymentMethodDescription = () => {
-    if (!selectedPaymentMethod.value) return 'Selecione uma forma de pagamento'
-    const descriptions = {
-        card: 'Pagamento com cartão (débito ou crédito)',
-        pix: 'Pagamento via PIX',
-        cash: 'Pagamento em dinheiro'
-    }
-    return descriptions[selectedPaymentMethod.value] || ''
+  if (!selectedPaymentMethod.value) return 'Selecione uma forma de pagamento'
+  const descriptions = {
+    card: 'Pagamento com cartão (débito ou crédito)',
+    pix: 'Pagamento via PIX',
+    cash: 'Pagamento em dinheiro'
+  }
+  return descriptions[selectedPaymentMethod.value] || ''
 }
 
 const formatAddress = (address) => {
-    if (!address) return ''
-    const parts = []
-    if (address.street) parts.push(address.street)
-    if (address.number) parts.push(address.number)
-    if (address.complement) parts.push(address.complement)
-    if (address.neighborhood) parts.push(address.neighborhood)
-    if (address.city && address.state) parts.push(`${address.city} - ${address.state}`)
-    if (address.cep) parts.push(address.cep)
-    return parts.join(', ')
+  if (!address) return ''
+  const parts = []
+  if (address.street) parts.push(address.street)
+  if (address.number) parts.push(address.number)
+  if (address.complement) parts.push(address.complement)
+  if (address.neighborhood) parts.push(address.neighborhood)
+  if (address.city && address.state) parts.push(`${address.city} - ${address.state}`)
+  if (address.cep) parts.push(address.cep)
+  return parts.join(', ')
 }
 
 const formatPrice = (value) => {
-    if (!value && value !== 0) return 'R$ 0,00'
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    }).format(value)
+  if (!value && value !== 0) return 'R$ 0,00'
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(value)
 }
 
 const getItemTotal = (item) => {
-    if (!item) return 0
-    if (item.isCombo) {
-        return (item.finalPrice || item.price) * (item.quantity || 1)
-    }
-    const productTotal = (item.price || 0) * (item.quantity || 1)
-    const aditionalsTotal = getItemAditionalsTotal(item)
-    return productTotal + aditionalsTotal
+  if (!item) return 0
+  if (item.isCombo) {
+    return (item.finalPrice || item.price) * (item.quantity || 1)
+  }
+  const productTotal = (item.price || 0) * (item.quantity || 1)
+  const aditionalsTotal = getItemAditionalsTotal(item)
+  return productTotal + aditionalsTotal
 }
 
 const getItemAditionalsTotal = (item) => {
-    if (!item || !item.aditionals) return 0
-    let total = 0
-    item.aditionals.forEach(group => {
-        group.items.forEach(aditional => {
-            if (aditional.quantity > 0 && aditional.price) {
-                total += (aditional.price * aditional.quantity)
-            }
-        })
+  if (!item || !item.aditionals) return 0
+  let total = 0
+  item.aditionals.forEach(group => {
+    group.items.forEach(aditional => {
+      if (aditional.quantity > 0 && aditional.price) {
+        total += (aditional.price * aditional.quantity)
+      }
     })
-    return total
+  })
+  return total
 }
 
 const getItemAditionalsList = (item) => {
-    if (!item || !item.aditionals) return []
-    const list = []
-    item.aditionals.forEach(group => {
-        group.items.forEach(aditional => {
-            if (aditional.quantity > 0) {
-                list.push({
-                    name: aditional.name,
-                    quantity: aditional.quantity,
-                    price: aditional.price || 0,
-                    total: (aditional.price || 0) * aditional.quantity
-                })
-            }
+  if (!item || !item.aditionals) return []
+  const list = []
+  item.aditionals.forEach(group => {
+    group.items.forEach(aditional => {
+      if (aditional.quantity > 0) {
+        list.push({
+          name: aditional.name,
+          quantity: aditional.quantity,
+          price: aditional.price || 0,
+          total: (aditional.price || 0) * aditional.quantity
         })
+      }
     })
-    return list
+  })
+  return list
 }
 
 const formatReorderDate = (date) => {
-    if (!date) return 'agora mesmo'
-    const now = new Date()
-    const reorderDate = new Date(date)
-    const diffMinutes = Math.floor((now - reorderDate) / 60000)
-    
-    if (diffMinutes < 1) return 'agora mesmo'
-    if (diffMinutes < 60) return `${diffMinutes} minuto(s) atrás`
-    if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)} hora(s) atrás`
-    return reorderDate.toLocaleDateString('pt-BR')
+  if (!date) return 'agora mesmo'
+  const now = new Date()
+  const reorderDate = new Date(date)
+  const diffMinutes = Math.floor((now - reorderDate) / 60000)
+  
+  if (diffMinutes < 1) return 'agora mesmo'
+  if (diffMinutes < 60) return `${diffMinutes} minuto(s) atrás`
+  if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)} hora(s) atrás`
+  return reorderDate.toLocaleDateString('pt-BR')
 }
 
-// ========== 5. QUINTO: Funções de modal e handlers ==========
+// ========== 5. HANDLERS ==========
 const openDeliveryMethodModal = () => {
-    if (!userStore.isLogged) {
-        toast.warning('Você precisa se identificar primeiro!', { timeout: 3000 })
-        return
-    }
-    showDeliveryMethodModal.value = true
+  if (!userStore.isLogged) {
+    toast.warning('Você precisa se identificar primeiro!', { timeout: 3000 })
+    return
+  }
+  showDeliveryMethodModal.value = true
 }
 
 const openPaymentMethodModal = () => {
-    if (!userStore.isLogged) {
-        toast.warning('Você precisa se identificar primeiro!', { timeout: 3000 })
-        return
-    }
-    showPaymentMethodModal.value = true
+  if (!userStore.isLogged) {
+    toast.warning('Você precisa se identificar primeiro!', { timeout: 3000 })
+    return
+  }
+  showPaymentMethodModal.value = true
 }
 
 const openAddressModal = () => {
-    if (!userStore.isLogged) {
-        toast.warning('Você precisa se identificar primeiro!', { timeout: 3000 })
-        return
-    }
-    
-    const addressesJson = localStorage.getItem('addresses')
-    if (addressesJson) {
-        const addresses = JSON.parse(addressesJson)
-        const savedSelectedId = localStorage.getItem('selectedAddressId')
-        if (savedSelectedId) {
-            const foundAddress = addresses.find(addr => addr.id === parseInt(savedSelectedId))
-            if (foundAddress) {
-                userStore.setSelectedAddress(foundAddress)
-            }
-        }
-    }
-    
-    showAddressModal.value = true
+  if (!userStore.isLogged) {
+    toast.warning('Você precisa se identificar primeiro!', { timeout: 3000 })
+    return
+  }
+  showAddressModal.value = true
 }
 
-const handleDeliveryMethodSelected = (method) => {
-    userStore.setDeliveryMethod(method)
-    toast.info(`Forma de entrega selecionada: ${method.label}`, { timeout: 3000 })
-    
-    if (method.value === 'delivery' && !userStore.selectedAddress) {
-        setTimeout(() => openAddressModal(), 300)
-    }
+const handleDeliveryMethodSelected = async (method) => {
+  await userStore.setDeliveryMethod(method)
+  toast.info(`Forma de entrega selecionada: ${method.label}`, { timeout: 3000 })
+  
+  if (method.value === 'delivery' && !userStore.selectedAddress) {
+    setTimeout(() => openAddressModal(), 300)
+  }
+  forceUpdate.value++
 }
 
-const handlePaymentMethodSelected = (method) => {
-    userStore.setPaymentMethod(method)
-    toast.info(`Forma de pagamento selecionada: ${getPaymentMethodText()}`, { timeout: 3000 })
+const handlePaymentMethodSelected = async (method) => {
+  await userStore.setPaymentMethod(method)
+  toast.info(`Forma de pagamento selecionada: ${getPaymentMethodText()}`, { timeout: 3000 })
+  forceUpdate.value++
 }
 
-const handleAddressSelected = (address) => {
-    userStore.setSelectedAddress(address)
+const handleAddressSelected = async (address) => {
+  await userStore.setSelectedAddress(address)
+  forceUpdate.value++
 }
 
 const openProductModal = (item) => {
-    console.log('Abrindo modal para edição - item completo:', JSON.parse(JSON.stringify(item)))
-    
-    const cartItemId = item.id
-    
-    let originalProduct = null
-    if (typeof window !== 'undefined' && window.products) {
-        originalProduct = window.products.find(p => p.id === item.productId || p.id === item.originalProductId)
-    }
-    
-    const baseProduct = originalProduct || item
-    const isComboItem = item.isCombo === true || baseProduct?.isCombo === true
-    
-    let mappedSelections = {}
-    let mappedAddons = {}
-    
-    if (isComboItem && item.itemSelections) {
-        Object.entries(item.itemSelections).forEach(([itemId, selection]) => {
-            mappedSelections[itemId] = selection
-        })
-    }
-    
-    if (isComboItem && item.selectedAddons) {
-        item.selectedAddons.forEach(addon => {
-            mappedAddons[addon.id] = addon.quantity
-        })
-    }
-    
-    const productToEdit = {
-        cartItemId: cartItemId,
-        id: item.productId || item.id,
-        productId: item.productId || item.originalProductId || item.id,
-        name: item.name,
-        description: item.description,
-        price: item.basePrice || item.finalPrice || item.price,
-        basePrice: item.basePrice,
-        finalPrice: item.finalPrice,
-        originalPrice: item.originalPrice || item.price,
-        oldPrice: item.oldPrice,
-        image: item.image,
-        cashback: item.cashback || 0,
-        cuisineType: item.cuisineType || baseProduct?.cuisineType,
-        quantity: item.quantity || 1,
-        isCombo: isComboItem,
-        customization: baseProduct?.customization,
-        comboItems: isComboItem ? (baseProduct?.comboItems || item.comboItems) : null,
-        comboAddons: isComboItem ? (baseProduct?.comboAddons || item.comboAddons) : null,
-        savings: isComboItem ? (baseProduct?.savings || item.savings) : null,
-        savingsPercent: isComboItem ? baseProduct?.savingsPercent : null,
-        stock: baseProduct?.stock,
-        comboItemSelections: isComboItem ? mappedSelections : {},
-        comboAddonsState: isComboItem ? mappedAddons : {},
-        selectedAddons: isComboItem ? (item.selectedAddons ? [...item.selectedAddons] : []) : [],
-        itemSelections: isComboItem ? (item.itemSelections ? JSON.parse(JSON.stringify(item.itemSelections)) : {}) : {},
-        aditionals: item.aditionals ? JSON.parse(JSON.stringify(item.aditionals)) : [],
-        aditionalsState: item.aditionalsState ? { ...item.aditionalsState } : {},
-        selectedSize: item.selectedSize,
-        selectedFlavors: item.selectedFlavors ? [...item.selectedFlavors] : [],
-        isEditing: true
-    }
-    
-    selectedProduct.value = productToEdit
-    showProductModal.value = true
+  const cartItemId = item.id
+  
+  let originalProduct = null
+  if (typeof window !== 'undefined' && window.products) {
+    originalProduct = window.products.find(p => p.id === item.productId || p.id === item.originalProductId)
+  }
+  
+  const baseProduct = originalProduct || item
+  const isComboItem = item.isCombo === true || baseProduct?.isCombo === true
+  
+  let mappedSelections = {}
+  let mappedAddons = {}
+  
+  if (isComboItem && item.itemSelections) {
+    Object.entries(item.itemSelections).forEach(([itemId, selection]) => {
+      mappedSelections[itemId] = selection
+    })
+  }
+  
+  if (isComboItem && item.selectedAddons) {
+    item.selectedAddons.forEach(addon => {
+      mappedAddons[addon.id] = addon.quantity
+    })
+  }
+  
+  const productToEdit = {
+    cartItemId: cartItemId,
+    id: item.productId || item.id,
+    productId: item.productId || item.originalProductId || item.id,
+    name: item.name,
+    description: item.description,
+    price: item.basePrice || item.finalPrice || item.price,
+    basePrice: item.basePrice,
+    finalPrice: item.finalPrice,
+    originalPrice: item.originalPrice || item.price,
+    oldPrice: item.oldPrice,
+    image: item.image,
+    cashback: item.cashback || 0,
+    cuisineType: item.cuisineType || baseProduct?.cuisineType,
+    quantity: item.quantity || 1,
+    isCombo: isComboItem,
+    customization: baseProduct?.customization,
+    comboItems: isComboItem ? (baseProduct?.comboItems || item.comboItems) : null,
+    comboAddons: isComboItem ? (baseProduct?.comboAddons || item.comboAddons) : null,
+    savings: isComboItem ? (baseProduct?.savings || item.savings) : null,
+    savingsPercent: isComboItem ? baseProduct?.savingsPercent : null,
+    stock: baseProduct?.stock,
+    comboItemSelections: isComboItem ? mappedSelections : {},
+    comboAddonsState: isComboItem ? mappedAddons : {},
+    selectedAddons: isComboItem ? (item.selectedAddons ? [...item.selectedAddons] : []) : [],
+    itemSelections: isComboItem ? (item.itemSelections ? JSON.parse(JSON.stringify(item.itemSelections)) : {}) : {},
+    aditionals: item.aditionals ? JSON.parse(JSON.stringify(item.aditionals)) : [],
+    aditionalsState: item.aditionalsState ? { ...item.aditionalsState } : {},
+    selectedSize: item.selectedSize,
+    selectedFlavors: item.selectedFlavors ? [...item.selectedFlavors] : [],
+    isEditing: true
+  }
+  
+  selectedProduct.value = productToEdit
+  showProductModal.value = true
 }
 
-const handleIdentify = (data) => {
-    userStore.login(data)
-    showModal.value = false
-    forceUpdate.value++
+const handleIdentify = async (data) => {
+  // Se for cliente existente (já veio com dados)
+  if (data.isExistingUser) {
+    await userStore.loginExistingUser(data.whatsapp)
+  } else {
+    // Cliente novo
+    await userStore.login(data)
+  }
+  
+  showModal.value = false
+  forceUpdate.value++
 }
 
 const handleConfirm = () => {
-    if (!canConfirm.value) {
-        if (!userStore.isLogged) {
-            toast.warning('Você precisa se identificar antes de continuar!', { timeout: 3000 })
-        } else if (!selectedDeliveryMethod.value) {
-            toast.warning('Por favor, selecione uma forma de entrega antes de continuar!', { timeout: 3000 })
-        } else if (selectedDeliveryMethod.value.value === 'delivery' && !selectedAddress.value) {
-            toast.warning('Por favor, selecione um endereço de entrega antes de continuar!', { timeout: 3000 })
-        } else if (!selectedPaymentMethod.value) {
-            toast.warning('Por favor, selecione uma forma de pagamento antes de continuar!', { timeout: 3000 })
-        }
-        return
+  if (!canConfirm.value) {
+    if (!userStore.isLogged) {
+      toast.warning('Você precisa se identificar antes de continuar!', { timeout: 3000 })
+    } else if (!selectedDeliveryMethod.value) {
+      toast.warning('Por favor, selecione uma forma de entrega antes de continuar!', { timeout: 3000 })
+    } else if (selectedDeliveryMethod.value.value === 'delivery' && !selectedAddress.value) {
+      toast.warning('Por favor, selecione um endereço de entrega antes de continuar!', { timeout: 3000 })
+    } else if (!selectedPaymentMethod.value) {
+      toast.warning('Por favor, selecione uma forma de pagamento antes de continuar!', { timeout: 3000 })
     }
-    
-    const orderData = {
-        user: {
-            fullName: userStore.fullName,
-            whatsapp: userStore.whatsapp
-        },
-        deliveryMethod: selectedDeliveryMethod.value,
-        paymentMethod: selectedPaymentMethod.value,
-        address: selectedAddress.value,
-        cart: cart.items,
-        totals: {
-            subTotal: cart.subTotal,
-            discount: cart.discount,
-            total: cart.total
-        },
-        completedAt: new Date().toISOString()
-    }
-    
-    console.log('Pedido confirmado:', orderData)
-    toast.success('Pedido confirmado com sucesso!', { timeout: 4000 })
+    return
+  }
+  
+  const orderData = {
+    user: {
+      fullName: userStore.fullName,
+      whatsapp: userStore.whatsapp
+    },
+    deliveryMethod: selectedDeliveryMethod.value,
+    paymentMethod: selectedPaymentMethod.value,
+    address: selectedAddress.value,
+    cart: cart.items,
+    totals: {
+      subTotal: cart.subTotal,
+      discount: cart.discount,
+      total: cart.total
+    },
+    completedAt: new Date().toISOString()
+  }
+  
+  console.log('Pedido confirmado:', orderData)
+  toast.success('Pedido confirmado com sucesso!', { timeout: 4000 })
 }
 
-// ========== 6. SEXTO: Computed property canConfirm ==========
-const canConfirm = computed(() => {
-    if (!userStore.isLogged) return false
-    if (!selectedDeliveryMethod.value) return false
-    if (selectedDeliveryMethod.value.value === 'delivery' && !selectedAddress.value) return false
-    if (!selectedPaymentMethod.value) return false
-    return true
-})
-
-// ========== 7. SÉTIMO: Watchers ==========
-// Watch para login
+// ========== 6. WATCHERS ==========
 watch(() => userStore.isLogged, async (isLogged) => {
-    console.log('🔴 WATCH: userStore.isLogged mudou para:', isLogged)
-    
-    if (isLogged) {
-        await nextTick()
-        forceUpdate.value++
-    } else {
-        forceUpdate.value++
-    }
+  console.log('🔴 userStore.isLogged mudou para:', isLogged)
+  if (isLogged) {
+    await nextTick()
+    forceUpdate.value++
+  } else {
+    forceUpdate.value++
+  }
 }, { immediate: true })
 
-// Watch para mudanças no carrinho
-watch(() => cart.items, (newItems) => {
-    console.log('Carrinho atualizado')
-    forceUpdate.value++
+watch(() => cart.items, () => {
+  forceUpdate.value++
 }, { deep: true })
 
-// Watch para mudanças nos dados do usuário
 watch([selectedAddress, selectedDeliveryMethod, selectedPaymentMethod], () => {
-    forceUpdate.value++
+  forceUpdate.value++
 }, { deep: true })
 
-// ========== 8. OITAVO: Lifecycle hooks ==========
+// ========== 7. EVENT LISTENERS ==========
 const handleStorageChange = (e) => {
-    if ((e.key === 'addresses' || e.key === 'addressesUpdated') && userStore.isLogged) {
-        forceUpdate.value++
-    }
+  if ((e.key === 'addresses' || e.key === 'addressesUpdated') && userStore.isLogged) {
+    forceUpdate.value++
+  }
 }
 
 const handleCustomAddressUpdate = () => {
-    console.log('Evento addresses-updated recebido no Cart')
-    setTimeout(() => {
-        if (userStore.isLogged) {
-            forceUpdate.value++
-        }
-    }, 100)
+  setTimeout(() => {
+    if (userStore.isLogged) {
+      forceUpdate.value++
+    }
+  }, 100)
 }
 
 const handleUserDataUpdated = (event) => {
-    console.log('Evento user-data-updated recebido:', event.detail)
-    forceUpdate.value++
+  console.log('user-data-updated recebido:', event.detail)
+  forceUpdate.value++
 }
 
+const handleUserDataLoaded = (event) => {
+  console.log('user-data-loaded recebido:', event.detail)
+  forceUpdate.value++
+}
+
+// ========== 8. LIFECYCLE ==========
 onMounted(() => {
-    console.log('🟢 Cart mounted')
-    
-    if (userStore.isLogged) {
-        forceUpdate.value++
-    }
-    
-    window.addEventListener('storage', handleStorageChange)
-    window.addEventListener('addresses-updated', handleCustomAddressUpdate)
-    window.addEventListener('user-data-updated', handleUserDataUpdated)
-    window.addEventListener('user-login', (event) => {
-        console.log('Evento user-login recebido no Cart:', event.detail)
-        if (event.detail) {
-            userStore.login(event.detail)
-            forceUpdate.value++
-        }
-    })
+  console.log('🟢 Cart mounted')
+  
+  userStore.loadUserFromStorage()
+  
+  if (userStore.isLogged) {
+    forceUpdate.value++
+  }
+  
+  window.addEventListener('storage', handleStorageChange)
+  window.addEventListener('addresses-updated', handleCustomAddressUpdate)
+  window.addEventListener('user-data-updated', handleUserDataUpdated)
+  window.addEventListener('user-data-loaded', handleUserDataLoaded)
 })
 
 onUnmounted(() => {
-    window.removeEventListener('storage', handleStorageChange)
-    window.removeEventListener('addresses-updated', handleCustomAddressUpdate)
-    window.removeEventListener('user-data-updated', handleUserDataUpdated)
+  window.removeEventListener('storage', handleStorageChange)
+  window.removeEventListener('addresses-updated', handleCustomAddressUpdate)
+  window.removeEventListener('user-data-updated', handleUserDataUpdated)
+  window.removeEventListener('user-data-loaded', handleUserDataLoaded)
 })
 </script>
 

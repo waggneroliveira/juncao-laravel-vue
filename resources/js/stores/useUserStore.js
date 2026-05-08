@@ -1,56 +1,25 @@
-// stores/useUserStore.js
 import { defineStore } from 'pinia'
 import axios from 'axios'
 
 export const useUserStore = defineStore('user', {
   state: () => ({
-    id: null,                    // ID único do usuário
-    fullName: '',                // Nome completo
-    whatsapp: '',                // WhatsApp para contato
-    email: '',                   // Email (opcional, para futuro)
-    isLogged: false,             // Status de login
-    selectedAddress: null,       // Endereço selecionado para entrega
-    deliveryMethod: null,        // Método de entrega selecionado
-    paymentMethod: null          // Método de pagamento selecionado
+    id: null,
+    fullName: '',
+    whatsapp: '',
+    email: '',
+    isLogged: false,
+    selectedAddress: null,
+    deliveryMethod: null,
+    paymentMethod: null
   }),
 
   getters: {
-    // Getter para o ID (consistência)
     userId: (state) => state.id,
-    
-    // Informações completas do usuário
-    userInfo: (state) => ({
-      id: state.id,
-      fullName: state.fullName,
-      whatsapp: state.whatsapp,
-      email: state.email,
-      selectedAddress: state.selectedAddress,
-      deliveryMethod: state.deliveryMethod,
-      paymentMethod: state.paymentMethod
-    }),
-    
-    // Nome de exibição (primeiro nome)
-    displayName: (state) => {
-      if (!state.fullName) return 'Usuário'
-      return state.fullName.split(' ')[0]
-    },
-    
-    // Verifica se tem endereço para entrega
-    hasDeliveryAddress: (state) => {
-      return state.selectedAddress !== null && state.selectedAddress !== undefined
-    },
-    
-    // Verifica se tem método de entrega
-    hasDeliveryMethod: (state) => {
-      return state.deliveryMethod !== null && state.deliveryMethod !== undefined
-    },
-    
-    // Verifica se tem método de pagamento
-    hasPaymentMethod: (state) => {
-      return state.paymentMethod !== null && state.paymentMethod !== undefined && state.paymentMethod !== ''
-    },
-    
-    // Dados completos para finalizar pedido
+    userInfo: (state) => ({ ...state }),
+    displayName: (state) => state.fullName?.split(' ')[0] || 'Usuário',
+    hasDeliveryAddress: (state) => !!state.selectedAddress,
+    hasDeliveryMethod: (state) => !!state.deliveryMethod,
+    hasPaymentMethod: (state) => !!state.paymentMethod,
     checkoutData: (state) => ({
       user: {
         id: state.id,
@@ -65,47 +34,154 @@ export const useUserStore = defineStore('user', {
   },
 
   actions: {
-    syncUserData() {
-      console.log('🔄 Sincronizando dados do usuário...')
-      
-      // Carregar método de entrega do localStorage
-      const deliveryMethod = localStorage.getItem('selectedDeliveryMethod')
-      if (deliveryMethod && !this.deliveryMethod) {
-        this.deliveryMethod = JSON.parse(deliveryMethod)
-        console.log('📦 Método de entrega sincronizado:', this.deliveryMethod)
-      }
-      
-      // Carregar método de pagamento do localStorage
-      const paymentMethod = localStorage.getItem('selectedPaymentMethod')
-      if (paymentMethod && !this.paymentMethod) {
-        this.paymentMethod = paymentMethod
-        console.log('📦 Método de pagamento sincronizado:', this.paymentMethod)
-      }
-      
-      // Carregar endereço do localStorage
-      const selectedAddress = localStorage.getItem('selectedAddress')
-      if (selectedAddress && !this.selectedAddress) {
-        this.selectedAddress = JSON.parse(selectedAddress)
-        console.log('📦 Endereço sincronizado:', this.selectedAddress)
-      }
-      
-      // Salvar no storage para persistência
-      this.saveToStorage()
-      
-      // Emitir evento para outros componentes (Cart, etc.)
-      window.dispatchEvent(new CustomEvent('user-data-synced', { 
-        detail: {
-          selectedAddress: this.selectedAddress,
+    /**
+     * 🔥 LOGIN DE CLIENTE EXISTENTE (FLUXO COMPLETO)
+     */
+    async loginExistingUser(whatsapp) {
+      try {
+        console.log('🔍 1. Buscando cliente pelo WhatsApp:', whatsapp)
+        
+        // Passo 1: Buscar dados do cliente (rota pública)
+        const findResponse = await axios.post('/client/find-by-whatsapp', { whatsapp })
+        
+        if (!findResponse.data.success || !findResponse.data.exists) {
+          console.log('❌ Cliente não encontrado')
+          return false
+        }
+        
+        const clientData = findResponse.data.client
+        console.log('✅ Cliente encontrado:', clientData)
+        
+        // Passo 2: Autenticar no backend (criar sessão)
+        console.log('🔐 2. Autenticando no backend...')
+        
+        const authResponse = await axios.post('/identify/validate-user', {
+          whatsapp: whatsapp,
+          fullName: clientData.name
+        })
+        
+        if (!authResponse.data.success) {
+          console.error('❌ Falha na autenticação:', authResponse.data)
+          return false
+        }
+        
+        console.log('✅ Autenticado com sucesso!')
+        
+        // Passo 3: Atualizar o store com os dados básicos
+        this.id = clientData.id
+        this.fullName = clientData.name
+        this.whatsapp = clientData.phone
+        this.email = clientData.email || ''
+        this.isLogged = true
+        
+        // Passo 4: Carregar métodos salvos
+        if (clientData.delivery_method) {
+          this.deliveryMethod = clientData.delivery_method
+          localStorage.setItem('selectedDeliveryMethod', JSON.stringify(clientData.delivery_method))
+          console.log('📦 Método de entrega:', this.deliveryMethod)
+        }
+        
+        if (clientData.payment_method) {
+          this.paymentMethod = clientData.payment_method
+          localStorage.setItem('selectedPaymentMethod', clientData.payment_method)
+          console.log('💰 Método de pagamento:', this.paymentMethod)
+        }
+        
+        this.saveToStorage()
+        
+        // Passo 5: Carregar endereços (agora com sessão autenticada)
+        await this.loadAddresses()
+        
+        // Passo 6: Disparar eventos
+        this.dispatchEvents()
+        
+        console.log('✅ Login existente finalizado! Estado final:', {
           deliveryMethod: this.deliveryMethod,
-          paymentMethod: this.paymentMethod
-        } 
-      }))
-      
-      console.log('✅ Sincronização concluída!')
+          paymentMethod: this.paymentMethod,
+          selectedAddress: this.selectedAddress
+        })
+        
+        return true
+        
+      } catch (error) {
+        console.error('❌ Erro no loginExistingUser:', error)
+        console.error('Detalhes:', error.response?.data)
+        return false
+      }
     },
-    // Login do usuário - SEM chamar fetchUserFromBackend para não sobrescrever o endereço
+    
+    /**
+     * 🔥 CARREGAR ENDEREÇOS DO USUÁRIO (após autenticação)
+     */
+    async loadAddresses() {
+      if (!this.id) {
+        console.log('⚠️ Sem ID do usuário')
+        return
+      }
+      
+      try {
+        console.log('🏠 Carregando endereços...')
+        const response = await axios.get('/client/addresses')
+        
+        if (response.data.success && response.data.addresses?.length > 0) {
+          const addresses = response.data.addresses
+          console.log(`📦 ${addresses.length} endereço(s) encontrado(s)`)
+          
+          // Tentar carregar o endereço selecionado
+          const savedAddressId = localStorage.getItem('selectedAddressId')
+          
+          if (savedAddressId) {
+            const selected = addresses.find(a => a.id == savedAddressId)
+            if (selected) {
+              this.selectedAddress = selected
+              console.log('🏠 Endereço selecionado:', selected.street)
+            }
+          }
+          
+          // Se não tem selecionado, pegar o principal
+          if (!this.selectedAddress) {
+            const primary = addresses.find(a => a.primary === true) || addresses[0]
+            if (primary) {
+              this.selectedAddress = primary
+              localStorage.setItem('selectedAddressId', primary.id.toString())
+              localStorage.setItem('selectedAddress', JSON.stringify(primary))
+              console.log('🏠 Endereço principal:', primary.street)
+            }
+          }
+          
+          this.saveToStorage()
+        } else {
+          console.log('⚠️ Nenhum endereço encontrado')
+        }
+      } catch (error) {
+        console.error('❌ Erro ao carregar endereços:', error)
+      }
+    },
+    
+    /**
+     * Disparar eventos para sincronizar o Cart
+     */
+    dispatchEvents() {
+      const eventData = {
+        deliveryMethod: this.deliveryMethod,
+        paymentMethod: this.paymentMethod,
+        selectedAddress: this.selectedAddress,
+        isLogged: true,
+        fullName: this.fullName
+      }
+      
+      window.dispatchEvent(new CustomEvent('user-data-updated', { detail: eventData }))
+      window.dispatchEvent(new CustomEvent('user-login', { detail: eventData }))
+      window.dispatchEvent(new CustomEvent('force-cart-update', { detail: { timestamp: Date.now() } }))
+      
+      console.log('📡 Eventos disparados:', eventData)
+    },
+    
+    /**
+     * Login de NOVO cliente (cadastro)
+     */
     login(userData) {
-      console.log('🟡 login chamado com:', userData)
+      console.log('🆕 Login de novo cliente:', userData)
       
       this.id = userData.id || Date.now()
       this.fullName = userData.fullName || ''
@@ -117,7 +193,6 @@ export const useUserStore = defineStore('user', {
         this.selectedAddress = userData.selectedAddress
         localStorage.setItem('selectedAddressId', userData.selectedAddress.id.toString())
         localStorage.setItem('selectedAddress', JSON.stringify(userData.selectedAddress))
-        console.log('📦 Endereço salvo no login:', userData.selectedAddress)
       }
       
       if (userData.deliveryMethod) {
@@ -131,146 +206,102 @@ export const useUserStore = defineStore('user', {
       }
       
       this.saveToStorage()
+      this.dispatchEvents()
       
-      console.log('✅ Usuário logado:', {
-        id: this.id,
-        fullName: this.fullName,
-        whatsapp: this.whatsapp,
-        selectedAddress: this.selectedAddress,
-        deliveryMethod: this.deliveryMethod,
-        paymentMethod: this.paymentMethod
-      })
-      
-      // 🔥 NÃO chama fetchUserFromBackend aqui para não sobrescrever o endereço recém-salvo
+      console.log('✅ Novo cliente logado')
     },
-
-    // Buscar dados completos do usuário no backend (apenas para recarregar dados)
-    async fetchUserFromBackend() {
-      if (!this.id) return null
+    
+    /**
+     * Setar método de entrega
+     */
+    async setDeliveryMethod(method) {
+      console.log('📦 setDeliveryMethod:', method)
+      this.deliveryMethod = method
       
-      try {
-        console.log('🔄 Buscando dados do usuário no backend...')
+      if (method) {
+        localStorage.setItem('selectedDeliveryMethod', JSON.stringify(method))
         
-        // Busca dados do cliente
-        const response = await axios.get('/client/data')
-        if (response.data.success) {
-          this.fullName = response.data.client.name
-          this.whatsapp = response.data.client.phone
-          this.email = response.data.client.email || ''
-          this.id = response.data.client.id
-          this.isLogged = true
-          
-          console.log('✅ Dados do cliente carregados:', response.data.client)
-        }
-        
-        // 🔥 Só busca endereços do backend se NÃO tiver endereço no localStorage
-        const localAddresses = localStorage.getItem('addresses')
-        const hasLocalAddress = localAddresses && JSON.parse(localAddresses).length > 0
-        
-        if (!hasLocalAddress) {
-          // Busca endereços do backend apenas se não tiver no localStorage
-          const addressesResponse = await axios.get('/client/addresses')
-          if (addressesResponse.data.success && addressesResponse.data.addresses.length > 0) {
-            const primaryAddress = addressesResponse.data.addresses.find(a => a.primary === true) || addressesResponse.data.addresses[0]
-            
-            // Só atualiza se for diferente do atual
-            if (JSON.stringify(this.selectedAddress) !== JSON.stringify(primaryAddress)) {
-              this.selectedAddress = primaryAddress
-              localStorage.setItem('selectedAddressId', primaryAddress.id.toString())
-              localStorage.setItem('selectedAddress', JSON.stringify(primaryAddress))
-              console.log('✅ Endereço carregado do backend:', primaryAddress)
-            }
+        if (this.id) {
+          try {
+            await axios.put('/client/delivery-method', method)
+            console.log('✅ Método de entrega salvo no backend')
+          } catch (error) {
+            console.error('Erro ao salvar:', error)
           }
-        } else {
-          console.log('📦 Endereço já existe no localStorage, mantendo:', this.selectedAddress)
         }
-        
-        this.saveToStorage()
-        
-        window.dispatchEvent(new CustomEvent('user-data-updated', { 
-          detail: { 
-            selectedAddress: this.selectedAddress,
-            deliveryMethod: this.deliveryMethod,
-            paymentMethod: this.paymentMethod
-          } 
-        }))
-        
-        return response.data.client
-      } catch (error) {
-        console.error('Erro ao buscar usuário do backend:', error)
-        return null
+      } else {
+        localStorage.removeItem('selectedDeliveryMethod')
       }
-    },
-
-    // Atualizar dados do usuário
-    updateUser(userData) {
-      if (userData.id) this.id = userData.id
-      if (userData.fullName) this.fullName = userData.fullName
-      if (userData.whatsapp) this.whatsapp = userData.whatsapp
-      if (userData.email) this.email = userData.email
-      if (userData.selectedAddress !== undefined) this.setSelectedAddress(userData.selectedAddress)
-      if (userData.deliveryMethod !== undefined) this.setDeliveryMethod(userData.deliveryMethod)
-      if (userData.paymentMethod !== undefined) this.setPaymentMethod(userData.paymentMethod)
       
       this.saveToStorage()
-      console.log('📝 Dados do usuário atualizados:', userData)
+      this.dispatchEvents()
     },
-
-    // Setar endereço selecionado
-    setSelectedAddress(address) {
-      console.log('🟡 setSelectedAddress chamado:', address)
+    
+    /**
+     * Setar método de pagamento
+     */
+    async setPaymentMethod(method) {
+      console.log('💰 setPaymentMethod:', method)
+      this.paymentMethod = method
+      
+      if (method) {
+        localStorage.setItem('selectedPaymentMethod', method)
+        
+        if (this.id) {
+          try {
+            await axios.put('/client/payment-method', { method })
+            console.log('✅ Método de pagamento salvo no backend')
+          } catch (error) {
+            console.error('Erro ao salvar:', error)
+          }
+        }
+      } else {
+        localStorage.removeItem('selectedPaymentMethod')
+      }
+      
+      this.saveToStorage()
+      this.dispatchEvents()
+    },
+    
+    /**
+     * Setar endereço selecionado
+     */
+    async setSelectedAddress(address) {
+      console.log('🏠 setSelectedAddress:', address)
       this.selectedAddress = address
+      
       if (address) {
         localStorage.setItem('selectedAddressId', address.id.toString())
         localStorage.setItem('selectedAddress', JSON.stringify(address))
+        
+        if (this.id) {
+          try {
+            await axios.put(`/client/addresses/${address.id}/primary`)
+            await axios.put('/client/selected-address', { address_id: address.id })
+            console.log('✅ Endereço salvo no backend')
+          } catch (error) {
+            console.error('Erro ao salvar endereço:', error)
+          }
+        }
       } else {
         localStorage.removeItem('selectedAddressId')
         localStorage.removeItem('selectedAddress')
       }
-      this.saveToStorage()
       
-      // Dispara evento para atualizar o Cart
-      window.dispatchEvent(new CustomEvent('user-data-updated', { 
-        detail: { selectedAddress: address } 
-      }))
+      this.saveToStorage()
+      this.dispatchEvents()
     },
-
-    // Setar método de entrega
-    setDeliveryMethod(method) {
-      console.log('🟡 setDeliveryMethod chamado:', method)
-      this.deliveryMethod = method
-      if (method) {
-        localStorage.setItem('selectedDeliveryMethod', JSON.stringify(method))
-      } else {
-        localStorage.removeItem('selectedDeliveryMethod')
+    
+    /**
+     * Logout
+     */
+    async logout() {
+      try {
+        await axios.get('/logout')
+      } catch (error) {
+        console.error('Erro no logout:', error)
       }
-      this.saveToStorage()
       
-      // Dispara evento para atualizar o Cart
-      window.dispatchEvent(new CustomEvent('user-data-updated', { 
-        detail: { deliveryMethod: method } 
-      }))
-    },
-
-    // Setar método de pagamento
-    setPaymentMethod(method) {
-      console.log('🟡 setPaymentMethod chamado:', method)
-      this.paymentMethod = method
-      if (method) {
-        localStorage.setItem('selectedPaymentMethod', method)
-      } else {
-        localStorage.removeItem('selectedPaymentMethod')
-      }
-      this.saveToStorage()
-      
-      // Dispara evento para atualizar o Cart
-      window.dispatchEvent(new CustomEvent('user-data-updated', { 
-        detail: { paymentMethod: method } 
-      }))
-    },
-
-    // Logout
-    logout() {
       this.id = null
       this.fullName = ''
       this.whatsapp = ''
@@ -286,13 +317,10 @@ export const useUserStore = defineStore('user', {
       localStorage.removeItem('selectedDeliveryMethod')
       localStorage.removeItem('selectedPaymentMethod')
       
+      this.dispatchEvents()
       console.log('👋 Usuário deslogado')
-      
-      // Dispara evento para atualizar o Cart
-      window.dispatchEvent(new CustomEvent('user-data-updated', { detail: { isLogged: false } }))
     },
-
-    // Salvar no localStorage
+    
     saveToStorage() {
       localStorage.setItem('userData', JSON.stringify({
         id: this.id,
@@ -304,8 +332,7 @@ export const useUserStore = defineStore('user', {
         paymentMethod: this.paymentMethod
       }))
     },
-
-    // Carregar do localStorage ao iniciar
+    
     loadUserFromStorage() {
       const saved = localStorage.getItem('userData')
       if (saved) {
@@ -320,27 +347,11 @@ export const useUserStore = defineStore('user', {
           this.paymentMethod = data.paymentMethod || null
           this.isLogged = true
           
-          console.log('📦 Usuário carregado do storage:', {
-            id: this.id,
-            fullName: this.fullName,
-            selectedAddress: this.selectedAddress,
-            deliveryMethod: this.deliveryMethod,
-            paymentMethod: this.paymentMethod
-          })
-          
-          // Busca dados atualizados do backend apenas se necessário
-          // this.fetchUserFromBackend() - chamar apenas quando precisar recarregar dados
+          console.log('📦 Usuário carregado do storage')
         } catch (error) {
-          console.error('Erro ao carregar usuário:', error)
-          this.logout()
+          console.error('Erro ao carregar:', error)
         }
       }
     }
-  },
-
-  persist: {
-    key: 'user',
-    storage: localStorage,
-    paths: ['id', 'fullName', 'whatsapp', 'email', 'isLogged', 'selectedAddress', 'deliveryMethod', 'paymentMethod']
   }
 })

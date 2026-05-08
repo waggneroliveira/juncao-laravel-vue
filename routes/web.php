@@ -74,11 +74,15 @@ Route::middleware('auth:client')->group(function () {
 
         Route::put('/delivery-method', [AuthClientController::class, 'updateDeliveryMethod']);
         Route::put('/payment-method', [AuthClientController::class, 'updatePaymentMethod']);
+        Route::get('/complete-data', [AuthClientController::class, 'getCompleteClientData']);
+
+        Route::put('/selected-address', [AuthClientController::class, 'updateSelectedAddress']);
+        
+        // Dados do cliente autenticado
+        Route::get('/client/data', [AuthClientController::class, 'getClientData']);
+        
     });
-    
-    // Dados do cliente autenticado
-    Route::get('/client/data', [AuthClientController::class, 'getClientData']);
-    
+
     // Cálculo do carrinho
     Route::post('/api/cart/calculate', function (\Illuminate\Http\Request $request, \App\Services\CartCalculationService $service) {
         try {
@@ -108,6 +112,9 @@ Route::middleware('auth:client')->group(function () {
     // Rotas de cupons
     Route::post('/api/coupons/validate', [\App\Http\Controllers\CouponController::class, 'validate']);
 });
+    
+// Rota para buscar cliente pelo WhatsApp 
+Route::post('/client/find-by-whatsapp', [AuthClientController::class, 'findByWhatsapp']);
 
 // Rotas de cupons (públicas para consulta)
 Route::apiResource('api/coupons', \App\Http\Controllers\CouponController::class);

@@ -68,7 +68,7 @@
 
             <button 
               class="btn btn-primary w-100" 
-              @click="checkAndAdvanceToDelivery"
+              @click="handleContinue"
               :disabled="isLoading"
             >
               <span v-if="isLoading">Verificando...</span>
@@ -214,6 +214,7 @@ const fullName = ref('')
 const currentStep = ref('form') // form, delivery, payment
 const isLoading = ref(false)
 const isLoggedIn = ref(false)
+const showRegistrationForm = ref(false) // 🔥 ADICIONADO - controle do formulário de cadastro
 
 // Controle do modal de endereços
 const showAddressModal = ref(false)
@@ -245,6 +246,7 @@ const resetModal = () => {
     tempDeliveryMethod.value = null
     tempPaymentMethod.value = ''
     isRegistrationMode.value = false
+    showRegistrationForm.value = false
   }, 300)
 }
 
@@ -272,7 +274,7 @@ const checkIfLoggedIn = () => {
   return false
 }
 
-// Verificação de usuário no backend
+// Verificação de usuário no backend (apenas para verificar existência)
 const checkUserExists = async (whatsappNumber, name) => {
   try {
     console.log('Verificando usuário:', { whatsapp: whatsappNumber, fullName: name })
@@ -290,58 +292,95 @@ const checkUserExists = async (whatsappNumber, name) => {
     return false
   } catch (error) {
     console.error('Erro detalhado ao verificar usuário:', error)
-    console.error('Resposta do erro:', error.response?.data)
     toast.error('Erro ao verificar dados. Tente novamente.')
     return false
   }
 }
 
-// Login do usuário existente
-const loginUser = async (whatsappNumber, name) => {
+// 🔥 MÉTODO PRINCIPAL: Lida com o clique no botão "Continuar"
+const handleContinue = async () => {
+  if (isLoggedIn.value) {
+    logout()
+    return
+  }
+
+  if (!whatsapp.value || !fullName.value) {
+    toast.warning('Preencha todos os campos!', { timeout: 3000 })
+    return
+  }
+
+  isLoading.value = true
+
   try {
-    console.log('Fazendo login:', { whatsapp: whatsappNumber, fullName: name })
-    
-    const response = await axios.post('/identify/validate-user', {
-      whatsapp: whatsappNumber,
-      fullName: name
-    })
-    
-    console.log('Resposta do login:', response.data)
-    
-    if (response.data.success) {
-      userStore.login({
-        fullName: fullName.value,
-        whatsapp: whatsapp.value,
-        isLogged: true
-      })
-      isLoggedIn.value = true
+    const cleanWhatsapp = whatsapp.value.replace(/\D/g, '')
+    const userExists = await checkUserExists(cleanWhatsapp, fullName.value)
+
+    if (userExists) {
+      // 🔥 USUÁRIO EXISTENTE - usa o método loginExistingUser do store
+      console.log('✅ Usuário existe! Fazendo login...')
+      await handleExistingUserLogin(cleanWhatsapp)
+    } else {
+      // 🔥 NOVO USUÁRIO - modo cadastro
+      console.log('🆕 Novo usuário! Iniciando cadastro...')
       
-      // Dispara evento de login
-      const loginEvent = new CustomEvent('user-login', { 
-        detail: { 
-          fullName: fullName.value, 
-          whatsapp: whatsapp.value,
-          isLogged: true
-        } 
+      // Limpa localStorage para novo cadastro
+      localStorage.removeItem('addresses')
+      localStorage.removeItem('selectedAddress')
+      localStorage.removeItem('selectedAddressId')
+      localStorage.removeItem('selectedDeliveryMethod')
+      localStorage.removeItem('selectedPaymentMethod')
+      localStorage.removeItem('userData')
+      
+      isRegistrationMode.value = true
+      currentStep.value = 'delivery'
+      toast.info('Complete seu cadastro selecionando as opções abaixo', { timeout: 3000 })
+    }
+  } catch (error) {
+    console.error('Erro ao verificar usuário:', error)
+    toast.error('Erro ao verificar dados. Tente novamente.', { timeout: 3000 })
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// MÉTODO PARA LOGIN DE USUÁRIO EXISTENTE
+const handleExistingUserLogin = async (cleanWhatsapp) => {
+  try {
+    console.log('🔍 Login de cliente existente com WhatsApp:', cleanWhatsapp)
+    
+    // O loginExistingUser já faz tudo: busca dados, autentica, carrega endereços
+    const success = await userStore.loginExistingUser(cleanWhatsapp)
+    
+    if (success) {
+      console.log('✅ Login realizado! Dados carregados:', {
+        deliveryMethod: userStore.deliveryMethod,
+        paymentMethod: userStore.paymentMethod,
+        selectedAddress: userStore.selectedAddress
       })
-      window.dispatchEvent(loginEvent)
+      
+      // Disparar eventos
+      window.dispatchEvent(new CustomEvent('force-cart-update', { 
+        detail: { source: 'identify-modal', timestamp: Date.now() } 
+      }))
       
       emit('submit', {
-        whatsapp: whatsapp.value,
-        fullName: fullName.value,
-        isLoggedIn: true
+        isExistingUser: true,
+        whatsapp: userStore.whatsapp,
+        fullName: userStore.fullName,
+        deliveryMethod: userStore.deliveryMethod,
+        paymentMethod: userStore.paymentMethod,
+        selectedAddress: userStore.selectedAddress
       })
       
       close()
-      toast.success(`Bem-vindo(a) de volta, ${fullName.value}!`)
-      return true
+      toast.success(`Bem-vindo de volta, ${userStore.fullName}!`)
+    } else {
+      console.log('❌ Cliente não encontrado ou erro no login')
+      toast.error('Usuário não encontrado. Verifique seus dados.')
     }
-    return false
   } catch (error) {
-    console.error('Erro detalhado ao fazer login:', error)
-    console.error('Resposta do erro:', error.response?.data)
-    toast.error(error.response?.data?.message || 'Erro ao fazer login. Tente novamente.')
-    return false
+    console.error('❌ Erro ao fazer login:', error)
+    toast.error('Erro ao fazer login. Tente novamente.')
   }
 }
 
@@ -352,21 +391,13 @@ const handleAddressSelected = async (address) => {
   if (address && pendingAddressSelection.value) {
     pendingAddressSelection.value = false
     
-    const userData = {
-      whatsapp: whatsapp.value,
-      fullName: fullName.value,
-      selectedAddress: address
-    }
-    
-    const existingData = localStorage.getItem('userData')
-    if (existingData) {
-      const parsed = JSON.parse(existingData)
-      Object.assign(userData, parsed)
-    }
-    
-    localStorage.setItem('userData', JSON.stringify(userData))
+    // Salva o endereço no localStorage temporariamente
+    localStorage.setItem('selectedAddress', JSON.stringify(address))
+    localStorage.setItem('selectedAddressId', address.id.toString())
     
     toast.success('Endereço selecionado com sucesso!', { timeout: 3000 })
+    
+    // 🔥 CHAMA O SUBMIT NOVAMENTE COM O ENDEREÇO
     await submitForm()
   }
 }
@@ -443,59 +474,11 @@ const logout = async () => {
   fullName.value = ''
   tempPaymentMethod.value = ''
   tempDeliveryMethod.value = null
+  isRegistrationMode.value = false
+  showRegistrationForm.value = false
   
   toast.info(`Até mais, ${userName}! Você saiu da sua conta.`, { timeout: 4000 })
   close()
-}
-
-// Verifica dados iniciais - Fluxo principal
-const checkAndAdvanceToDelivery = async () => {
-  if (isLoggedIn.value) {
-    logout()
-    return
-  }
-
-  if (!whatsapp.value || !fullName.value) {
-    toast.warning('Preencha todos os campos!', { timeout: 3000 })
-    return
-  }
-
-  isLoading.value = true
-
-  try {
-    const cleanWhatsapp = whatsapp.value.replace(/\D/g, '')
-    const userExists = await checkUserExists(cleanWhatsapp, fullName.value)
-
-    if (userExists) {
-      await loginUser(cleanWhatsapp, fullName.value)
-    } else {
-      // 🔥 LIMPA O LOCALSTORAGE PARA NOVO CADASTRO (NOVO USUÁRIO)
-      localStorage.removeItem('addresses')
-      localStorage.removeItem('selectedAddress')
-      localStorage.removeItem('selectedAddressId')
-      localStorage.removeItem('selectedDeliveryMethod')
-      localStorage.removeItem('selectedPaymentMethod')
-      localStorage.removeItem('userData')
-      localStorage.removeItem('addressesUpdated')
-      
-      isRegistrationMode.value = true
-      currentStep.value = 'delivery'
-      toast.info('Complete seu cadastro selecionando as opções abaixo', { timeout: 3000 })
-    }
-  } catch (error) {
-    console.error('Erro ao verificar usuário:', error)
-    toast.error('Erro ao verificar dados. Tente novamente.', { timeout: 3000 })
-  } finally {
-    isLoading.value = false
-  }
-}
-
-// Voltar para o formulário inicial
-const backToForm = () => {
-  currentStep.value = 'form'
-  tempDeliveryMethod.value = null
-  tempPaymentMethod.value = ''
-  isRegistrationMode.value = false
 }
 
 // Submissão final do formulário (apenas para NOVOS usuários)
@@ -514,29 +497,36 @@ const submitForm = async () => {
 
   let selectedAddress = null
   
-  // Busca endereço do localStorage (modo cadastro)
-  const storedAddresses = localStorage.getItem('addresses')
-  if (storedAddresses) {
-    const addresses = JSON.parse(storedAddresses)
-    selectedAddress = addresses.find(a => a.primary === true) || addresses[0]
-    console.log('📦 Endereço encontrado no localStorage:', selectedAddress)
-  }
-  
-  if (!selectedAddress) {
-    const userData = localStorage.getItem('userData')
-    if (userData) {
-      const parsed = JSON.parse(userData)
-      selectedAddress = parsed.selectedAddress
-      console.log('📦 Endereço encontrado no userData:', selectedAddress)
+  // 🔥 SÓ BUSCA ENDEREÇO SE FOR DELIVERY
+  if (tempDeliveryMethod.value.value === 'delivery') {
+    // Busca endereço do localStorage (modo cadastro)
+    const storedAddresses = localStorage.getItem('addresses')
+    if (storedAddresses) {
+      const addresses = JSON.parse(storedAddresses)
+      selectedAddress = addresses.find(a => a.primary === true) || addresses[0]
+      console.log('📦 Endereço encontrado no localStorage:', selectedAddress)
     }
-  }
+    
+    // Se não encontrou endereço nos addresses, tenta no userData
+    if (!selectedAddress) {
+      const savedAddress = localStorage.getItem('selectedAddress')
+      if (savedAddress) {
+        selectedAddress = JSON.parse(savedAddress)
+        console.log('📦 Endereço encontrado no selectedAddress:', selectedAddress)
+      }
+    }
 
-  if (tempDeliveryMethod.value.value === 'delivery' && !selectedAddress) {
-    console.log('⚠️ Nenhum endereço encontrado, abrindo modal')
-    pendingAddressSelection.value = true
-    showAddressModal.value = true
-    isLoading.value = false
-    return
+    // Se for delivery e não tem endereço, abre modal
+    if (!selectedAddress) {
+      console.log('⚠️ Nenhum endereço encontrado para delivery, abrindo modal')
+      pendingAddressSelection.value = true
+      showAddressModal.value = true
+      isLoading.value = false
+      return
+    }
+  } else {
+    // 🔥 Se for pickup ou local, NÃO precisa de endereço
+    console.log('✅ Método de entrega:', tempDeliveryMethod.value.value, '- não requer endereço')
   }
 
   const cleanWhatsapp = whatsapp.value.replace(/\D/g, '')
@@ -547,22 +537,18 @@ const submitForm = async () => {
     email: '',
     deliveryMethod: tempDeliveryMethod.value,
     paymentMethod: tempPaymentMethod.value,
-    selectedAddress: selectedAddress
+    selectedAddress: selectedAddress // Pode ser null para pickup/local
   }
 
   try {
-    console.log('Registrando novo usuário:', data)
+    console.log('📝 Registrando novo usuário:', data)
     
     const response = await axios.post('/identify/register', data)
     
-    console.log('Resposta do registro:', response.data)
+    console.log('✅ Resposta do registro:', response.data)
     
     if (response.data.success) {
-      // 🔥 SALVA O ENDEREÇO NO USERSTORE PRIMEIRO
-      userStore.selectedAddress = selectedAddress
-      userStore.deliveryMethod = tempDeliveryMethod.value
-      userStore.paymentMethod = tempPaymentMethod.value
-      
+      // Atualiza o userStore com os dados
       userStore.login({
         fullName: fullName.value,
         whatsapp: whatsapp.value,
@@ -575,12 +561,7 @@ const submitForm = async () => {
       
       isLoggedIn.value = true
       
-      console.log('✅ userStore.selectedAddress após login:', userStore.selectedAddress)
-      
-      localStorage.removeItem('addresses')
-      localStorage.removeItem('userData')
-      
-      // 🔥 FORÇA ATUALIZAÇÃO IMEDIATA NO CART
+      // Disparar eventos para sincronizar o Cart
       window.dispatchEvent(new CustomEvent('addresses-updated'))
       window.dispatchEvent(new CustomEvent('user-data-updated', { 
         detail: { 
@@ -591,7 +572,7 @@ const submitForm = async () => {
         } 
       }))
       
-      const loginEvent = new CustomEvent('user-login', { 
+      window.dispatchEvent(new CustomEvent('user-login', { 
         detail: { 
           fullName: fullName.value, 
           whatsapp: whatsapp.value,
@@ -600,8 +581,7 @@ const submitForm = async () => {
           paymentMethod: tempPaymentMethod.value,
           selectedAddress: selectedAddress
         } 
-      })
-      window.dispatchEvent(loginEvent)
+      }))
       
       emit('submit', data)
       close()
@@ -610,7 +590,7 @@ const submitForm = async () => {
       toast.error(response.data.message || 'Erro ao cadastrar. Tente novamente.')
     }
   } catch (error) {
-    console.error('Erro detalhado ao finalizar cadastro:', error)
+    console.error('❌ Erro detalhado ao finalizar cadastro:', error)
     if (error.response?.data?.errors) {
       const errors = error.response.data.errors
       Object.values(errors).forEach(err => {
@@ -624,6 +604,15 @@ const submitForm = async () => {
   }
 }
 
+// Voltar para o formulário inicial
+const backToForm = () => {
+  currentStep.value = 'form'
+  tempDeliveryMethod.value = null
+  tempPaymentMethod.value = ''
+  isRegistrationMode.value = false
+  showRegistrationForm.value = false
+}
+
 // Watchers
 watch(() => props.modelValue, async (open) => {
   if (open) {
@@ -632,6 +621,7 @@ watch(() => props.modelValue, async (open) => {
     tempDeliveryMethod.value = null
     tempPaymentMethod.value = ''
     isRegistrationMode.value = false
+    showRegistrationForm.value = false
     
     checkIfLoggedIn()
     
@@ -639,11 +629,7 @@ watch(() => props.modelValue, async (open) => {
       fullName.value = ''
       whatsapp.value = ''
     }
-  }
-})
-
-watch(() => props.modelValue, async (open) => {
-  if (open) {
+    
     await nextTick()
     const firstInput = document.querySelector('.identify-modal input')
     if (firstInput) {
@@ -655,9 +641,21 @@ watch(() => props.modelValue, async (open) => {
   }
 })
 
-// 🔥 LOG PARA MONITORAR isRegistrationMode
+// Log para monitorar mudanças
 watch(() => isRegistrationMode.value, (newVal) => {
-  console.log('🔵🔵🔵 isRegistrationMode mudou para:', newVal)
+  console.log('🔵 isRegistrationMode mudou para:', newVal)
+})
+
+watch(() => userStore.deliveryMethod, (newVal) => {
+  console.log('🔵 userStore.deliveryMethod mudou:', newVal)
+})
+
+watch(() => userStore.paymentMethod, (newVal) => {
+  console.log('🔵 userStore.paymentMethod mudou:', newVal)
+})
+
+watch(() => userStore.selectedAddress, (newVal) => {
+  console.log('🔵 userStore.selectedAddress mudou:', newVal)
 })
 </script>
 

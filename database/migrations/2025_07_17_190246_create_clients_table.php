@@ -19,6 +19,9 @@ return new class extends Migration
             $table->boolean('active')->default(0);
             $table->string('password');
             $table->string('path_image')->nullable();
+            $table->json('delivery_method')->nullable();
+            $table->string('payment_method')->nullable();
+            $table->foreignId('selected_address_id')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             
             $table->timestamps();

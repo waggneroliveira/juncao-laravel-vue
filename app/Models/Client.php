@@ -23,6 +23,9 @@ class Client extends Authenticatable
         'password',
         'active',
         'path_image',
+        'payment_method',
+        'payment_method',
+        'selected_address_id',
     ];
 
     protected $hidden = [
