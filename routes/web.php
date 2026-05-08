@@ -71,6 +71,9 @@ Route::middleware('auth:client')->group(function () {
         Route::put('/addresses/{id}', [ClientAddressController::class, 'update']);
         Route::delete('/addresses/{id}', [ClientAddressController::class, 'destroy']);
         Route::put('/addresses/{id}/primary', [ClientAddressController::class, 'setPrimary']);
+
+        Route::put('/delivery-method', [AuthClientController::class, 'updateDeliveryMethod']);
+        Route::put('/payment-method', [AuthClientController::class, 'updatePaymentMethod']);
     });
     
     // Dados do cliente autenticado
