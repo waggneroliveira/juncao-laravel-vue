@@ -658,17 +658,37 @@ const openProductModal = (item) => {
   showProductModal.value = true
 }
 
+//  HANDLER DO IDENTIFY MODAL - ATUALIZADO COM EMAIL
 const handleIdentify = async (data) => {
+  console.log('📝 handleIdentify recebido:', data)
+  
   // Se for cliente existente (já veio com dados)
   if (data.isExistingUser) {
-    await userStore.loginExistingUser(data.whatsapp)
+    // 🔥 PASSAR O EMAIL TAMBÉM!
+    await userStore.loginExistingUser(data.whatsapp, data.email)
   } else {
-    // Cliente novo
-    await userStore.login(data)
+    // Cliente novo - salvar todos os dados
+    await userStore.login({
+      id: data.id,
+      fullName: data.fullName,
+      whatsapp: data.whatsapp,
+      email: data.email,
+      isLogged: true,
+      deliveryMethod: data.deliveryMethod,
+      paymentMethod: data.paymentMethod,
+      selectedAddress: data.selectedAddress
+    })
   }
   
   showModal.value = false
+  
+  await nextTick()
   forceUpdate.value++
+  
+  setTimeout(() => {
+    forceUpdate.value++
+    console.log('🔄 Forçando atualização do Cart após login')
+  }, 100)
 }
 
 const handleConfirm = () => {
@@ -687,8 +707,10 @@ const handleConfirm = () => {
   
   const orderData = {
     user: {
+      id: userStore.id,
       fullName: userStore.fullName,
-      whatsapp: userStore.whatsapp
+      whatsapp: userStore.whatsapp,
+      email: userStore.email
     },
     deliveryMethod: selectedDeliveryMethod.value,
     paymentMethod: selectedPaymentMethod.value,
@@ -706,33 +728,69 @@ const handleConfirm = () => {
   toast.success('Pedido confirmado com sucesso!', { timeout: 4000 })
 }
 
-// ========== 6. WATCHERS ==========
-watch(() => userStore.isLogged, async (isLogged) => {
-  console.log('🔴 userStore.isLogged mudou para:', isLogged)
+// ========== 6. WATCHERS FORTES ==========
+// Watch para isLogged
+watch(() => userStore.isLogged, async (isLogged, oldIsLogged) => {
+  console.log('🔴 WATCH: userStore.isLogged mudou de', oldIsLogged, 'para', isLogged)
+  
   if (isLogged) {
+    console.log('✅ Usuário logado - Dados atuais:', {
+      id: userStore.id,
+      fullName: userStore.fullName,
+      whatsapp: userStore.whatsapp,
+      email: userStore.email,
+      deliveryMethod: userStore.deliveryMethod,
+      paymentMethod: userStore.paymentMethod,
+      selectedAddress: userStore.selectedAddress
+    })
     await nextTick()
     forceUpdate.value++
   } else {
     forceUpdate.value++
   }
+}, { immediate: true, deep: true })
+
+// Watch para todos os dados do userStore
+watch(() => userStore.userInfo, (newInfo, oldInfo) => {
+  console.log('🔴 WATCH: userStore.userInfo mudou')
+  console.log('Novos dados:', newInfo)
+  forceUpdate.value++
+}, { deep: true, immediate: true })
+
+// Watch para deliveryMethod
+watch(() => userStore.deliveryMethod, (newVal, oldVal) => {
+  console.log('🔴 WATCH: deliveryMethod mudou de', oldVal, 'para', newVal)
+  forceUpdate.value++
+}, { deep: true, immediate: true })
+
+// Watch para paymentMethod
+watch(() => userStore.paymentMethod, (newVal, oldVal) => {
+  console.log('🔴 WATCH: paymentMethod mudou de', oldVal, 'para', newVal)
+  forceUpdate.value++
 }, { immediate: true })
 
-watch(() => cart.items, () => {
+// Watch para selectedAddress
+watch(() => userStore.selectedAddress, (newVal, oldVal) => {
+  console.log('🔴 WATCH: selectedAddress mudou de', oldVal?.id, 'para', newVal?.id)
   forceUpdate.value++
-}, { deep: true })
+}, { deep: true, immediate: true })
 
-watch([selectedAddress, selectedDeliveryMethod, selectedPaymentMethod], () => {
+// Watch para cart items
+watch(() => cart.items, () => {
+  console.log('🛒 Carrinho atualizado')
   forceUpdate.value++
 }, { deep: true })
 
 // ========== 7. EVENT LISTENERS ==========
 const handleStorageChange = (e) => {
-  if ((e.key === 'addresses' || e.key === 'addressesUpdated') && userStore.isLogged) {
+  console.log('📡 storage event:', e.key)
+  if ((e.key === 'addresses' || e.key === 'addressesUpdated' || e.key === 'userData') && userStore.isLogged) {
     forceUpdate.value++
   }
 }
 
 const handleCustomAddressUpdate = () => {
+  console.log('📡 addresses-updated event received')
   setTimeout(() => {
     if (userStore.isLogged) {
       forceUpdate.value++
@@ -741,36 +799,67 @@ const handleCustomAddressUpdate = () => {
 }
 
 const handleUserDataUpdated = (event) => {
-  console.log('user-data-updated recebido:', event.detail)
+  console.log('📡 user-data-updated recebido:', event.detail)
   forceUpdate.value++
 }
 
 const handleUserDataLoaded = (event) => {
-  console.log('user-data-loaded recebido:', event.detail)
+  console.log('📡 user-data-loaded recebido:', event.detail)
+  forceUpdate.value++
+}
+
+const handleForceCartUpdate = (event) => {
+  console.log('📡 force-cart-update recebido:', event.detail)
+  forceUpdate.value++
+}
+
+const handleUserLogin = (event) => {
+  console.log('📡 user-login recebido:', event.detail)
   forceUpdate.value++
 }
 
 // ========== 8. LIFECYCLE ==========
 onMounted(() => {
-  console.log('🟢 Cart mounted')
+  console.log('🟢 Cart mounted - Inicializando...')
   
+  // Carregar dados do storage
   userStore.loadUserFromStorage()
   
+  console.log('📦 Estado inicial do userStore:', {
+    isLogged: userStore.isLogged,
+    id: userStore.id,
+    fullName: userStore.fullName,
+    email: userStore.email,
+    deliveryMethod: userStore.deliveryMethod,
+    paymentMethod: userStore.paymentMethod,
+    selectedAddress: userStore.selectedAddress
+  })
+  
+  // Se estiver logado, forçar atualização
   if (userStore.isLogged) {
-    forceUpdate.value++
+    setTimeout(() => {
+      forceUpdate.value++
+      console.log('🔄 Forçando atualização inicial')
+    }, 100)
   }
   
+  // Registrar todos os eventos
   window.addEventListener('storage', handleStorageChange)
   window.addEventListener('addresses-updated', handleCustomAddressUpdate)
   window.addEventListener('user-data-updated', handleUserDataUpdated)
   window.addEventListener('user-data-loaded', handleUserDataLoaded)
+  window.addEventListener('force-cart-update', handleForceCartUpdate)
+  window.addEventListener('user-login', handleUserLogin)
 })
 
 onUnmounted(() => {
+  console.log('🔴 Cart unmounted - Removendo listeners')
   window.removeEventListener('storage', handleStorageChange)
   window.removeEventListener('addresses-updated', handleCustomAddressUpdate)
   window.removeEventListener('user-data-updated', handleUserDataUpdated)
   window.removeEventListener('user-data-loaded', handleUserDataLoaded)
+  window.removeEventListener('force-cart-update', handleForceCartUpdate)
+  window.removeEventListener('user-login', handleUserLogin)
 })
 </script>
 

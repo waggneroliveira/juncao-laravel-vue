@@ -18,14 +18,15 @@ use Illuminate\Support\Str;
 class AuthClientController extends Controller
 {
     /**
-     * Verifica se o usuário existe pelo WhatsApp e Nome
+     * Verifica se o usuário existe pelo WhatsApp, Nome e Email
      */
     public function checkUser(Request $request)
     {
         try {
             $validator = Validator::make($request->all(), [
                 'whatsapp' => 'required|string',
-                'fullName' => 'required|string'
+                'fullName' => 'required|string',
+                'email' => 'required|email'  
             ]);
 
             if ($validator->fails()) {
@@ -39,10 +40,12 @@ class AuthClientController extends Controller
             // Limpa o WhatsApp enviado (remove formatação)
             $whatsappEnviado = preg_replace('/\D/', '', $request->whatsapp);
             $fullName = trim($request->fullName);
+            $email = trim($request->email);
 
             \Log::info('CheckUser - Buscando cliente:', [
                 'whatsapp_limpo' => $whatsappEnviado,
-                'nome' => $fullName
+                'nome' => $fullName,
+                'email' => $email
             ]);
 
             // Busca todos os clientes ativos
@@ -64,26 +67,43 @@ class AuthClientController extends Controller
                     'id' => $client->id,
                     'name' => $client->name,
                     'phone' => $client->phone,
-                    'phone_limpo' => preg_replace('/\D/', '', $client->phone)
+                    'email_banco' => $client->email,
+                    'email_enviado' => $email
                 ]);
 
                 // Verifica se o nome é igual (case insensitive)
-                if (strtolower(trim($client->name)) === strtolower($fullName)) {
+                $nomeCorreto = strtolower(trim($client->name)) === strtolower($fullName);
+                
+                // 🔥 Verifica se o email é igual (case insensitive)
+                $emailCorreto = strtolower(trim($client->email)) === strtolower($email);
+
+                if ($nomeCorreto && $emailCorreto) {
                     return response()->json([
                         'success' => true,
                         'exists' => true,
                         'client_id' => $client->id
                     ]);
                 } else {
-                    \Log::warning('Nome não confere:', [
+                    $mensagem = '';
+                    if (!$nomeCorreto && !$emailCorreto) {
+                        $mensagem = 'Telefone encontrado mas nome e email não conferem';
+                    } elseif (!$nomeCorreto) {
+                        $mensagem = 'Telefone encontrado mas nome não confere';
+                    } elseif (!$emailCorreto) {
+                        $mensagem = 'Telefone encontrado mas email não confere';
+                    }
+                    
+                    \Log::warning('Dados não conferem:', [
                         'nome_banco' => $client->name,
-                        'nome_enviado' => $fullName
+                        'nome_enviado' => $fullName,
+                        'email_banco' => $client->email,
+                        'email_enviado' => $email
                     ]);
                     
                     return response()->json([
                         'success' => true,
                         'exists' => false,
-                        'message' => 'Telefone encontrado mas nome não confere'
+                        'message' => $mensagem
                     ]);
                 }
             }
@@ -106,14 +126,15 @@ class AuthClientController extends Controller
     }
 
     /**
-     * Valida e autentica usuário existente
+     * Valida e autentica usuário existente (com email)
      */
     public function validateUser(Request $request)
     {
         try {
             $validator = Validator::make($request->all(), [
                 'whatsapp' => 'required|string',
-                'fullName' => 'required|string'
+                'fullName' => 'required|string',
+                'email' => 'required|email'  
             ]);
 
             if ($validator->fails()) {
@@ -126,10 +147,12 @@ class AuthClientController extends Controller
 
             $whatsappEnviado = preg_replace('/\D/', '', $request->whatsapp);
             $fullName = trim($request->fullName);
+            $email = trim($request->email);
 
             \Log::info('ValidateUser - Buscando cliente:', [
                 'whatsapp_limpo' => $whatsappEnviado,
-                'nome' => $fullName
+                'nome' => $fullName,
+                'email' => $email
             ]);
 
             // Busca todos os clientes ativos
@@ -155,12 +178,33 @@ class AuthClientController extends Controller
                 ]);
             }
 
-            // Verifica o nome
-            if (strtolower(trim($client->name)) !== strtolower($fullName)) {
+            // Verifica o nome (case insensitive)
+            $nomeCorreto = strtolower(trim($client->name)) === strtolower($fullName);
+            
+            // 🔥 Verifica o email (case insensitive)
+            $emailCorreto = strtolower(trim($client->email)) === strtolower($email);
+
+            if (!$nomeCorreto && !$emailCorreto) {
+                return response()->json([
+                    'success' => false,
+                    'exists' => false,
+                    'message' => 'Nome e email não conferem com o cadastro'
+                ]);
+            }
+            
+            if (!$nomeCorreto) {
                 return response()->json([
                     'success' => false,
                     'exists' => false,
                     'message' => 'Nome não confere com o cadastro'
+                ]);
+            }
+            
+            if (!$emailCorreto) {
+                return response()->json([
+                    'success' => false,
+                    'exists' => false,
+                    'message' => 'Email não confere com o cadastro'
                 ]);
             }
 
@@ -168,7 +212,10 @@ class AuthClientController extends Controller
             Auth::guard('client')->login($client);
             $request->session()->regenerate();
 
-            \Log::info('Cliente autenticado com sucesso:', ['id' => $client->id]);
+            \Log::info('Cliente autenticado com sucesso:', [
+                'id' => $client->id,
+                'email' => $client->email
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -192,6 +239,7 @@ class AuthClientController extends Controller
             ], 500);
         }
     }
+
 
     /**
      * Registro de novo cliente (salva sem formatação)

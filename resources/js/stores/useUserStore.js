@@ -37,75 +37,90 @@ export const useUserStore = defineStore('user', {
     /**
      * 🔥 LOGIN DE CLIENTE EXISTENTE (FLUXO COMPLETO)
      */
-    async loginExistingUser(whatsapp) {
+    async loginExistingUser(whatsapp, email = null) {
       try {
-        console.log('🔍 1. Buscando cliente pelo WhatsApp:', whatsapp)
+        console.log('🔍 Buscando cliente existente pelo WhatsApp:', whatsapp)
+        console.log('📧 Email fornecido:', email)
         
-        // Passo 1: Buscar dados do cliente (rota pública)
-        const findResponse = await axios.post('/client/find-by-whatsapp', { whatsapp })
+        // 1. Primeiro, busca os dados do cliente (rota pública)
+        const response = await axios.post('/client/find-by-whatsapp', { whatsapp })
         
-        if (!findResponse.data.success || !findResponse.data.exists) {
-          console.log('❌ Cliente não encontrado')
-          return false
+        console.log('📦 Resposta do find-by-whatsapp:', response.data)
+        
+        if (response.data.success && response.data.exists && response.data.client) {
+          const client = response.data.client
+          
+          console.log('✅ Cliente encontrado:', client)
+          
+          // 🔥 USAR O EMAIL FORNECIDO OU O DO BANCO
+          const emailToUse = email || client.email
+          
+          console.log('📧 Email que será usado na autenticação:', emailToUse)
+          
+          // 2. Autenticar no backend com email também
+          const authResponse = await axios.post('/identify/validate-user', {
+            whatsapp: whatsapp,
+            fullName: client.name,
+            email: emailToUse  // 🔥 ESSE CAMPO É OBRIGATÓRIO AGORA
+          })
+          
+          console.log('📦 Resposta do validate-user:', authResponse.data)
+          
+          if (!authResponse.data.success) {
+            console.error('❌ Falha na autenticação')
+            return false
+          }
+          
+          // 3. Atualizar store com os dados
+          this.id = client.id
+          this.fullName = client.name
+          this.whatsapp = client.phone
+          this.email = emailToUse  // 🔥 SALVAR O EMAIL
+          this.isLogged = true
+          
+          // 4. Carregar métodos salvos
+          if (client.delivery_method) {
+            this.deliveryMethod = client.delivery_method
+            localStorage.setItem('selectedDeliveryMethod', JSON.stringify(client.delivery_method))
+            console.log('📦 Método de entrega carregado:', this.deliveryMethod)
+          }
+          
+          if (client.payment_method) {
+            this.paymentMethod = client.payment_method
+            localStorage.setItem('selectedPaymentMethod', client.payment_method)
+            console.log('💰 Método de pagamento carregado:', this.paymentMethod)
+          }
+          
+          this.saveToStorage()
+          
+          // 5. Carregar endereços
+          await this.loadAddresses()
+          
+          // 6. Disparar eventos
+          this.dispatchEvents()
+          
+          console.log('✅ Login existente finalizado! Estado final:', {
+            deliveryMethod: this.deliveryMethod,
+            paymentMethod: this.paymentMethod,
+            selectedAddress: this.selectedAddress,
+            email: this.email
+          })
+          
+          return true
         }
         
-        const clientData = findResponse.data.client
-        console.log('✅ Cliente encontrado:', clientData)
-        
-        // Passo 2: Autenticar no backend (criar sessão)
-        console.log('🔐 2. Autenticando no backend...')
-        
-        const authResponse = await axios.post('/identify/validate-user', {
-          whatsapp: whatsapp,
-          fullName: clientData.name
-        })
-        
-        if (!authResponse.data.success) {
-          console.error('❌ Falha na autenticação:', authResponse.data)
-          return false
-        }
-        
-        console.log('✅ Autenticado com sucesso!')
-        
-        // Passo 3: Atualizar o store com os dados básicos
-        this.id = clientData.id
-        this.fullName = clientData.name
-        this.whatsapp = clientData.phone
-        this.email = clientData.email || ''
-        this.isLogged = true
-        
-        // Passo 4: Carregar métodos salvos
-        if (clientData.delivery_method) {
-          this.deliveryMethod = clientData.delivery_method
-          localStorage.setItem('selectedDeliveryMethod', JSON.stringify(clientData.delivery_method))
-          console.log('📦 Método de entrega:', this.deliveryMethod)
-        }
-        
-        if (clientData.payment_method) {
-          this.paymentMethod = clientData.payment_method
-          localStorage.setItem('selectedPaymentMethod', clientData.payment_method)
-          console.log('💰 Método de pagamento:', this.paymentMethod)
-        }
-        
-        this.saveToStorage()
-        
-        // Passo 5: Carregar endereços (agora com sessão autenticada)
-        await this.loadAddresses()
-        
-        // Passo 6: Disparar eventos
-        this.dispatchEvents()
-        
-        console.log('✅ Login existente finalizado! Estado final:', {
-          deliveryMethod: this.deliveryMethod,
-          paymentMethod: this.paymentMethod,
-          selectedAddress: this.selectedAddress
-        })
-        
-        return true
-        
+        console.log('❌ Cliente não encontrado')
+        return false
       } catch (error) {
-        console.error('❌ Erro no loginExistingUser:', error)
+        console.error('❌ Erro ao logar cliente existente:', error)
         console.error('Detalhes:', error.response?.data)
+        
+        // Mostrar mensagem de erro mais clara
+        const errorMessage = error.response?.data?.errors || error.response?.data?.message
+        if (errorMessage) {
+          console.error('Erro detalhado da validação:', errorMessage)
+        }
+        
         return false
       }
     },
@@ -291,35 +306,65 @@ export const useUserStore = defineStore('user', {
       this.saveToStorage()
       this.dispatchEvents()
     },
-    
+
     /**
-     * Logout
+     * Logout - Limpa completamente todos os dados
      */
-    async logout() {
-      try {
-        await axios.get('/logout')
-      } catch (error) {
-        console.error('Erro no logout:', error)
-      }
-      
-      this.id = null
-      this.fullName = ''
-      this.whatsapp = ''
-      this.email = ''
-      this.isLogged = false
-      this.selectedAddress = null
-      this.deliveryMethod = null
-      this.paymentMethod = null
-      
-      localStorage.removeItem('userData')
-      localStorage.removeItem('selectedAddressId')
-      localStorage.removeItem('selectedAddress')
-      localStorage.removeItem('selectedDeliveryMethod')
-      localStorage.removeItem('selectedPaymentMethod')
-      
-      this.dispatchEvents()
-      console.log('👋 Usuário deslogado')
-    },
+ // stores/useUserStore.js - CORREÇÃO do logout
+
+
+async logout() {
+  try {
+    await axios.get('/logout')
+  } catch (error) {
+    console.error('Erro no logout:', error)
+  }
+  
+  // Limpar estado do store
+  this.id = null
+  this.fullName = ''
+  this.whatsapp = ''
+  this.email = ''
+  this.isLogged = false
+  this.selectedAddress = null
+  this.deliveryMethod = null
+  this.paymentMethod = null
+  
+  // 🔥 LIMPAR TODAS AS CHAVES DO LOCALSTORAGE
+  const keysToRemove = [
+    'userData',           // Dados do usuário
+    'selectedAddressId',  // ID do endereço selecionado
+    'selectedAddress',    // Endereço selecionado
+    'selectedDeliveryMethod', // Método de entrega
+    'selectedPaymentMethod',  // Método de pagamento
+    'addresses',          // Lista de endereços
+    'addressesUpdated',   // Flag de atualização
+    'user'                // Dados do persist (Pinia)
+  ]
+  
+  keysToRemove.forEach(key => {
+    localStorage.removeItem(key)
+    console.log(`🗑️ Removido do localStorage: ${key}`)
+  })
+  
+  // 🔥 LIMPAR TAMBÉM O SESSION STORAGE SE HOUVER
+  sessionStorage.clear()
+  
+  // Disparar eventos para atualizar o Cart
+  this.dispatchEvents()
+  
+  // 🔥 DISPARAR EVENTO ESPECÍFICO DE LOGOUT
+  window.dispatchEvent(new CustomEvent('user-logout', { 
+    detail: { isLogged: false, timestamp: Date.now() } 
+  }))
+  
+  // 🔥 FORÇAR ATUALIZAÇÃO DO CART
+  window.dispatchEvent(new CustomEvent('force-cart-update', { 
+    detail: { source: 'logout', timestamp: Date.now() } 
+  }))
+  
+  console.log('👋 Usuário deslogado - localStorage limpo')
+},
     
     saveToStorage() {
       localStorage.setItem('userData', JSON.stringify({
