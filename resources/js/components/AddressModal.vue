@@ -221,7 +221,7 @@
 
     const props = defineProps({
         modelValue: Boolean,
-        registrationMode: Boolean  // NOVA PROP: indica se é modo cadastro
+        registrationMode: Boolean
     })
 
     const emit = defineEmits(['update:modelValue', 'address-selected'])
@@ -267,7 +267,6 @@
         if (userStore.isLogged && !props.registrationMode) {
             loadAddressesFromBackend()
         } else {
-            // Modo cadastro ou usuário não logado - carrega do localStorage
             const stored = localStorage.getItem('addresses')
             if (stored) {
                 addresses.value = JSON.parse(stored)
@@ -377,57 +376,76 @@
         }
     }
 
+    // 🔥 CORREÇÃO DO deleteAddress
     const deleteAddress = async (id) => {
-        if (confirm('Deseja excluir este endereço?')) {
-            try {
-                if (userStore.isLogged && !props.registrationMode) {
-                    const response = await axios.delete(`/client/addresses/${id}`)
-                    if (response.data.success) {
-                        await loadAddressesFromBackend()
-                        
-                        const wasSelected = selectedId.value === id
-                        
-                        if (wasSelected) {
-                            const primaryAddress = addresses.value.find(addr => addr.primary === true)
-                            if (primaryAddress) {
-                                emit('address-selected', primaryAddress)
-                            } else if (addresses.value.length > 0) {
-                                emit('address-selected', addresses.value[0])
-                            } else {
-                                emit('address-selected', null)
-                            }
-                        }
-                        
-                        triggerAddressUpdate()
-                        toast.success('Endereço removido com sucesso!')
-                    }
-                } else {
-                    const wasSelected = selectedId.value === id
-                    
-                    addresses.value = addresses.value.filter(a => a.id !== id)
-                    localStorage.setItem('addresses', JSON.stringify(addresses.value))
-                    
-                    if (wasSelected) {
-                        const primaryAddress = addresses.value.find(addr => addr.primary === true)
-                        if (primaryAddress) {
-                            emit('address-selected', primaryAddress)
-                        } else if (addresses.value.length > 0) {
-                            emit('address-selected', addresses.value[0])
-                        } else {
-                            emit('address-selected', null)
-                        }
-                    }
-                    
-                    triggerAddressUpdate()
+        if (!confirm('Deseja excluir este endereço?')) return
+        
+        try {
+            const addressToDelete = addresses.value.find(a => a.id === id)
+            const wasSelected = userStore.selectedAddress?.id === id
+            
+            // 1. Remover do backend (se estiver logado e não for modo cadastro)
+            if (userStore.isLogged && !props.registrationMode) {
+                const response = await axios.delete(`/client/addresses/${id}`)
+                if (response.data.success) {
+                    // Recarregar endereços do backend
+                    await loadAddressesFromBackend()
                     toast.success('Endereço removido com sucesso!')
+                } else {
+                    throw new Error('Falha ao deletar')
                 }
-            } catch (error) {
-                console.error('Erro ao deletar endereço:', error)
-                toast.error('Erro ao deletar endereço')
+            } else {
+                // Modo cadastro - remover do localStorage
+                addresses.value = addresses.value.filter(a => a.id !== id)
+                localStorage.setItem('addresses', JSON.stringify(addresses.value))
+                toast.success('Endereço removido com sucesso!')
             }
+            
+            // 2. 🔥 ATUALIZAR userStore SE O ENDEREÇO REMOVIDO ERA O SELECIONADO
+            if (wasSelected) {
+                // Buscar um novo endereço para selecionar
+                const primaryAddress = addresses.value.find(addr => addr.primary === true)
+                const firstAddress = addresses.value[0]
+                const newSelectedAddress = primaryAddress || firstAddress || null
+                
+                if (newSelectedAddress) {
+                    // Atualizar o store com o novo endereço selecionado
+                    await userStore.setSelectedAddress(newSelectedAddress)
+                    emit('address-selected', newSelectedAddress)
+                } else {
+                    // Sem endereços restantes
+                    await userStore.setSelectedAddress(null)
+                    emit('address-selected', null)
+                }
+            }
+            
+            // 3. 🔥 FORÇAR ATUALIZAÇÃO DO CART
+            triggerAddressUpdate()
+            
+            // 4. Disparar eventos específicos para o Cart
+            window.dispatchEvent(new CustomEvent('user-data-updated', { 
+                detail: { 
+                    selectedAddress: userStore.selectedAddress,
+                    forceUpdate: Date.now()
+                } 
+            }))
+            
+            window.dispatchEvent(new CustomEvent('force-cart-update', { 
+                detail: { source: 'address-delete', timestamp: Date.now() } 
+            }))
+            
+            // 5. Se não tiver mais endereços, mostrar formulário
+            if (addresses.value.length === 0) {
+                showForm()
+            }
+            
+        } catch (error) {
+            console.error('Erro ao deletar endereço:', error)
+            toast.error('Erro ao deletar endereço')
         }
     }
 
+    // 🔥 CORREÇÃO do saveAddress
     const saveAddress = async () => {
         try {
             if (form.value.primary) {
@@ -438,7 +456,6 @@
             
             let isNewAddress = !form.value.id
             
-            // MODO LOGADO E NÃO É CADASTRO - Salva no backend
             if (userStore.isLogged && !props.registrationMode) {
                 const url = isNewAddress ? '/client/addresses' : `/client/addresses/${form.value.id}`
                 const method = isNewAddress ? 'post' : 'put'
@@ -448,34 +465,28 @@
                 if (response.data.success) {
                     await loadAddressesFromBackend()
                     
-                    if (form.value.primary) {
-                        emit('address-selected', form.value)
-                    } else if (isNewAddress && addresses.value.length === 1) {
-                        emit('address-selected', form.value)
+                    // Buscar o endereço atualizado/salvo
+                    const savedAddress = addresses.value.find(a => a.id === response.data.address?.id || a.id === form.value.id)
+                    
+                    if (savedAddress && (form.value.primary || addresses.value.length === 1)) {
+                        await userStore.setSelectedAddress(savedAddress)
+                        emit('address-selected', savedAddress)
                     }
                     
                     triggerAddressUpdate()
                     showList()
                     toast.success(isNewAddress ? 'Endereço cadastrado com sucesso!' : 'Endereço atualizado com sucesso!')
                 }
-            } 
-            // MODO CADASTRO OU USUÁRIO NÃO LOGADO - Salva apenas no localStorage
-            else {
-                // 🔥 LIMPA A LISTA DE ENDEREÇOS ANTIGOS QUANDO FOR MODO CADASTRO
+            } else {
+                // Modo cadastro
                 if (props.registrationMode) {
                     addresses.value = []
-                    console.log('🧹 Modo cadastro: endereços antigos removidos')
                 }
                 
                 if (form.value.id) {
                     const index = addresses.value.findIndex(a => a.id === form.value.id)
                     if (index !== -1) {
-                        const wasSelected = selectedId.value === form.value.id
                         addresses.value[index] = { ...form.value }
-                        
-                        if (wasSelected) {
-                            emit('address-selected', form.value)
-                        }
                     }
                 } else {
                     isNewAddress = true
@@ -485,16 +496,13 @@
 
                 localStorage.setItem('addresses', JSON.stringify(addresses.value))
                 
-                if (form.value.primary) {
-                    emit('address-selected', form.value)
-                } else if (isNewAddress && addresses.value.length === 1) {
+                if (form.value.primary || addresses.value.length === 1) {
                     emit('address-selected', form.value)
                 }
                 
                 triggerAddressUpdate()
                 showList()
                 
-                // Só mostra toast se não for modo cadastro (para não poluir)
                 if (!props.registrationMode) {
                     toast.success(isNewAddress ? 'Endereço cadastrado com sucesso!' : 'Endereço atualizado com sucesso!')
                 }
@@ -518,21 +526,17 @@
         triggerAddressUpdate()
     }
 
-    // Watch para quando o modal abre
     watch(() => props.modelValue, async (newValue) => {
         if (newValue) {
-            // Se NÃO é modo cadastro E não está logado, bloqueia
             if (!props.registrationMode && !userStore.isLogged) {
                 toast.warning('Você precisa estar logado para gerenciar endereços')
                 close()
                 return
             }
             
-            // Carrega endereços
             if (userStore.isLogged && !props.registrationMode) {
                 await loadAddressesFromBackend()
             } else {
-                // Modo cadastro - carrega do localStorage
                 const stored = localStorage.getItem('addresses')
                 if (stored) {
                     addresses.value = JSON.parse(stored)

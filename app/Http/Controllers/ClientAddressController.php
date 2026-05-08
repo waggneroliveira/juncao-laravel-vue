@@ -133,20 +133,67 @@ class ClientAddressController extends Controller
         ]);
     }
     
+    // public function destroy($id)
+    // {
+    //     $client = Auth::guard('client')->user();
+        
+    //     $address = ClientAddress::where('id', $id)
+    //         ->where('client_id', $client->id)
+    //         ->firstOrFail();
+        
+    //     $address->update(['active' => 0]);
+        
+    //     return response()->json([
+    //         'success' => true,
+    //         'message' => 'Endereço removido com sucesso'
+    //     ]);
+    // }
+    // App/Http/Controllers/ClientAddressController.php
+
     public function destroy($id)
     {
-        $client = Auth::guard('client')->user();
-        
-        $address = ClientAddress::where('id', $id)
-            ->where('client_id', $client->id)
-            ->firstOrFail();
-        
-        $address->update(['active' => 0]);
-        
-        return response()->json([
-            'success' => true,
-            'message' => 'Endereço removido com sucesso'
-        ]);
+        try {
+            $client = Auth::guard('client')->user();
+            
+            if (!$client) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Não autenticado'
+                ], 401);
+            }
+            
+            $address = ClientAddress::where('client_id', $client->id)
+                ->where('id', $id)
+                ->first();
+            
+            if (!$address) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Endereço não encontrado'
+                ], 404);
+            }
+            
+            // 🔥 DELETAR FISICAMENTE (ou soft delete)
+            $address->delete();
+            
+            // Se o endereço deletado era o selecionado, limpar o selected_address_id do cliente
+            if ($client->selected_address_id == $id) {
+                $client->selected_address_id = null;
+                $client->save();
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Endereço removido com sucesso'
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Erro ao deletar endereço: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao deletar endereço'
+            ], 500);
+        }
     }
     
     public function setPrimary($id)
