@@ -3,9 +3,9 @@
 
     <div class="content-logo">
       <!-- Logo -->
-      <div class="image text-center mb-2 mb-md-3 position-relative rounded-circle">
+      <div class="image text-center mb-2 mb-md-3 position-relative rounded-circle overflow-hidden">
           <img 
-              src="@/assets/images/logo.png" 
+              src="@/assets/images/delifast.png" 
               alt="Oxente Açaiteria"
               class="logo"
           />
@@ -13,7 +13,7 @@
 
       <!-- Nome + status -->
       <div class="text-center text-md-start mb-0 mb-md-4 w-100">
-        <h5 class="fw-medium text-primary mb-1">Oxente Açaiteria</h5>
+        <h5 class="fw-bold text-dark mb-1">Oxente Açaiteria</h5>
         <small class="d-block font-12 text-grey">Praticidade que alimenta.</small>
         
         <div class="d-flex justify-content-center justify-content-md-start align-items-center mt-0 mt-md-2">

@@ -2,16 +2,17 @@
   --font-primary: 'Inter', sans-serif;
 
   /* ========= CORES BASE ========= */
-  --primary: #A4268E;
+  --primary: #fd7823;
   --primary-light: #C85BB3;
   --primary-soft: #F3D4EC;
   --primary-dark: #7A1C69;
 
   /* ========= BACKGROUNDS ========= */
   --bg-primary-hover: rgba(245, 116, 116, 0.705);
-  --bg-main: #F5F5F5;
+  --bg-main: #faf9f5;
   --bg-ccc: #CCC;
   --bg-light: #f3f4f6;
+  --bg-footer: #fdf3e4;
   --bg-soft: #FFF6D9;
   --bg-ouro: #FFF1C3;
   --bg-yellow: #FFC400;
@@ -98,5 +99,5 @@ p, .horous-day{
 }
 .title-section-product{
     font-size: clamp(1.125rem, 2vw, 2rem);
-    color: var(--primary);
+    color: var(--text-dark);
 }

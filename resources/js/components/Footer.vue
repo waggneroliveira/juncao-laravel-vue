@@ -3,9 +3,9 @@
     <div class="container container-footer">
 
       <!-- LOGO -->
-      <div class="footer-col logo-col">
+      <div class="footer-col logo-col overflow-hidden">
         <img 
-          src="@/assets/images/logo.png" 
+          src="@/assets/images/delifast.png" 
           alt="Oxente Açaiteria"
           class="logo"
         />
@@ -34,13 +34,15 @@
       <!-- LOCALIZAÇÃO -->
       <div class="footer-col location-col">
         <h4>Localização</h4>
-        <p class="text-white">Lauro de Freitas - BA</p>
+        <p class="text-dark">Lauro de Freitas - BA</p>
 
         <div class="delivery">
-          <span class="f-icon">F</span>
           <div class="delivery-text">
-            <span>DELI</span>
-            <strong>FAST</strong>
+            <img 
+              src="@/assets/images/delifast-h.png" 
+              alt="Oxente Açaiteria"
+              class="logo"
+          />
           </div>
         </div>
       </div>
@@ -57,8 +59,8 @@ export default {
 
 <style scoped>
 .footer {
-  background: var(--primary);
-  color: #fff;
+  background: var(--bg-footer);
+  color: #000;
   padding: 30px 20px;
 }
 
@@ -70,10 +72,6 @@ export default {
 }
 
 /* COLUNAS */
-.footer-col {
-  min-width: 180px;
-}
-
 .footer-col h4 {
   font-weight: 600;
   margin-bottom: 10px;
@@ -93,10 +91,11 @@ export default {
 .logo-col {
   display: flex;
   align-items: center;
+  border-radius: 100%;
 }
 
 .logo {
-  width: 90px;
+  width: 130px;
   height: auto;
 }
 

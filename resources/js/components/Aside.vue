@@ -43,9 +43,9 @@
     </div>
 
     <!-- Banner -->
-    <div class="mt-5 text-start d-none d-md-block">
+    <div class="mt-5 text-start d-none d-md-block col-11">
       <img 
-        src="@/assets/images/anuncio.png" 
+        src="@/assets/images/delifast-vertical.png" 
         class="img-fluid"
       />
     </div>

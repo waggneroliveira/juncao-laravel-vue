@@ -1,7 +1,7 @@
 <template>
     <div class="image my-4 mt-0 my-md-0">
         <img 
-              src="@/assets/images/anuncio-horizontal.png" 
+              src="@/assets/images/delifast-hotizontal.png" 
               alt="Oxente Açaiteria"
               class="logo"
           />
@@ -22,8 +22,8 @@
     }
     .image img{
         width: 100%;
-        max-width: 500px;
-        height: 120px;
+        max-width: 530px;
+        height: 225px;
         object-fit: cover;
         aspect-ratio: 1 / 1.92;
     }
