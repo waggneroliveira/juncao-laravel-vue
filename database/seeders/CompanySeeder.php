@@ -18,12 +18,12 @@ class CompanySeeder extends Seeder
         */
 
         $company = Company::create([
-            'name'           => 'Oxente Açaíteria',
-            'slug'           => 'oxente-acaiteria',
+            'name'           => 'DeliFast',
+            'slug'           => 'delifast',
             'phone'          => '(11) 99999-9999',
             'whatsapp'       => '11999999999',
             'email'          => 'contato@oxente.com',
-            'description'    => 'Praticidade que alimenta.',
+            'description'    => 'Sitema de delivery.',
             'timezone'       => 'America/Sao_Paulo',
             'operation_mode' => 'automatic',
         ]);
@@ -47,15 +47,15 @@ class CompanySeeder extends Seeder
         $hours = [
 
             // Segunda à Sexta
-            ['weekday' => 1, 'open_time' => '14:00:00', 'close_time' => '18:00:00'],
-            ['weekday' => 2, 'open_time' => '14:00:00', 'close_time' => '18:00:00'],
-            ['weekday' => 3, 'open_time' => '14:00:00', 'close_time' => '18:00:00'],
-            ['weekday' => 4, 'open_time' => '14:00:00', 'close_time' => '18:00:00'],
-            ['weekday' => 5, 'open_time' => '14:00:00', 'close_time' => '18:00:00'],
+            // ['weekday' => 1, 'open_time' => '14:00:00', 'close_time' => '18:00:00'],
+            ['weekday' => 2, 'open_time' => '16:00:00', 'close_time' => '21:00:00'],
+            ['weekday' => 3, 'open_time' => '16:00:00', 'close_time' => '21:00:00'],
+            ['weekday' => 4, 'open_time' => '16:00:00', 'close_time' => '21:00:00'],
+            ['weekday' => 5, 'open_time' => '16:00:00', 'close_time' => '21:00:00'],
 
             // Sábado e Domingo
-            ['weekday' => 6, 'open_time' => '14:00:00', 'close_time' => '18:00:00'],
-            ['weekday' => 0, 'open_time' => '14:00:00', 'close_time' => '18:00:00'],
+            ['weekday' => 6, 'open_time' => '14:00:00', 'close_time' => '23:00:00'],
+            ['weekday' => 0, 'open_time' => '14:00:00', 'close_time' => '23:00:00'],
         ];
 
         foreach ($hours as $hour) {

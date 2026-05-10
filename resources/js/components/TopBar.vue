@@ -12,13 +12,34 @@
       </div>
 
       <!-- Nome + status -->
-      <div class="text-center text-md-start mb-0 mb-md-4 w-100">
-        <h5 class="fw-bold text-dark mb-1">Oxente Açaiteria</h5>
-        <small class="d-block font-12 text-grey">Praticidade que alimenta.</small>
-        
-        <div class="d-flex justify-content-center justify-content-md-start align-items-center mt-0 mt-md-2">
-          <span class="status-dot me-1"></span>
-          <small class="text-grey">Aberto <i class="fst-normal"> • 14h às 18h</i></small>
+      <div class="text-center text-md-start mb-0 mb-md-4 w-100">        
+        <h5 class="fw-bold text-dark mb-1">
+          {{ company?.name || 'Carregando...' }}
+        </h5>
+
+        <small class="d-block font-12 text-grey">
+          {{ company?.description }}
+        </small>
+
+        <div
+          class="d-flex justify-content-center justify-content-md-start align-items-center mt-0 mt-md-2"
+          v-if="company"
+        >
+          <span
+            class="status-dot me-1"
+            :class="company.is_open ? 'bg-success' : 'bg-danger'"
+          ></span>
+
+          <small class="text-grey">
+            {{ company.status_label }}
+
+            <i
+              class="fst-normal"
+              v-if="groupedOpeningHours.length"
+            >
+              • {{ groupedOpeningHours[0].period }}
+            </i>
+          </small>
         </div>
       </div>
     </div>
@@ -27,23 +48,19 @@
     <div class="d-none d-md-flex flex-row flex-wrap align-items-start gap-2 text-secondary small mt-0 mt-md-5">
       
       <div class="horous">
-        <div class="d-flex align-items-start gap-2 mb-1 pe-2 border-end">
+        <div
+          v-for="(item, index) in groupedOpeningHours"
+          :key="index"
+          class="d-flex align-items-start gap-2 mb-1"
+          :class="{ 'pe-2 border-end': index === 0 && groupedOpeningHours.length > 1 }"
+        >
           <svg class="mt-1" width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8.49928 0C3.81162 0 0 3.81382 0 8.50135C0 13.1891 3.81162 17 8.49928 17C13.1869 17 17 13.1891 17 8.50135C17 3.81364 13.1869 0 8.49928 0ZM8.49928 1.11725C12.5836 1.11725 15.8847 4.41628 15.8847 8.50135C15.8847 12.5857 12.5836 15.8849 8.49928 15.8849C4.41497 15.8849 1.1158 12.5866 1.1158 8.50135C1.1158 4.417 4.41407 1.11725 8.49928 1.11725ZM8.49928 2.34841C8.19062 2.34841 7.941 2.59802 7.941 2.90599V8.50144C7.94241 8.6491 8.00147 8.79043 8.10623 8.89449L10.7416 11.5299C10.9595 11.7471 11.3118 11.7471 11.5298 11.5299C11.747 11.3119 11.747 10.9589 11.5298 10.7417L9.05696 8.27081V2.90594C9.05696 2.59798 8.80725 2.34841 8.49928 2.34841Z" fill="var(--primary-dark)"/>
+            <path d="M8.49928 0C3.81162 0 0 3.81382 0 8.50135C0 13.1891 3.81162 17 8.49928 17C13.1869 17 17 13.1891 17 8.50135C17 3.81364 13.1869 0 8.49928 0ZM8.49928 1.11725C12.5836 1.11725 15.8847 4.41628 15.8847 8.50135C15.8847 12.5857 12.5836 15.8849 8.49928 15.8849C4.41497 15.8849 1.1158 12.5866 1.1158 8.50135C1.1158 4.417 4.41407 1.11725 8.49928 1.11725ZM8.49928 2.34841C8.19062 2.34841 7.941 2.59802 7.941 2.90599V8.50144C7.94241 8.6491 8.00147 8.79043 8.10623 8.89449L10.7416 11.5299C10.9595 11.7471 11.3118 11.7471 11.5298 11.5299C11.747 11.3119 11.747 10.9589 11.5298 10.7417L9.05696 8.27081V2.90594C9.05696 2.59798 8.80725 2.34841 8.49928 2.34841Z" fill="var(--primary-dark)"/>
           </svg>
 
           <span class="horous-day d-flex flex-column text-grey">
-            Segunda à sexta-feira <i>14:00 às 18:00</i>
-          </span>
-        </div>
-
-        <div class="d-flex align-items-start gap-2">
-          <svg class="mt-1" width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8.49928 0C3.81162 0 0 3.81382 0 8.50135C0 13.1891 3.81162 17 8.49928 17C13.1869 17 17 13.1891 17 8.50135C17 3.81364 13.1869 0 8.49928 0ZM8.49928 1.11725C12.5836 1.11725 15.8847 4.41628 15.8847 8.50135C15.8847 12.5857 12.5836 15.8849 8.49928 15.8849C4.41497 15.8849 1.1158 12.5866 1.1158 8.50135C1.1158 4.417 4.41407 1.11725 8.49928 1.11725ZM8.49928 2.34841C8.19062 2.34841 7.941 2.59802 7.941 2.90599V8.50144C7.94241 8.6491 8.00147 8.79043 8.10623 8.89449L10.7416 11.5299C10.9595 11.7471 11.3118 11.7471 11.5298 11.5299C11.747 11.3119 11.747 10.9589 11.5298 10.7417L9.05696 8.27081V2.90594C9.05696 2.59798 8.80725 2.34841 8.49928 2.34841Z" fill="var(--primary-dark)"/>
-          </svg>
-
-          <span class="horous-day d-flex flex-column text-grey">
-            Sábado e Domingo <i>14:00 às 18:00</i>
+            {{ item.label }}
+            <i>{{ item.period }}</i>
           </span>
         </div>
       </div>
@@ -174,18 +191,20 @@
         <span class="text-grey">Horário de Funcionamento</span>
       </div>
       <div class="d-flex flex-column gap-2 text-secondary small ps-3">
-        <div class="d-flex align-items-start gap-2">
+
+        <div
+          v-for="(item, index) in groupedOpeningHours"
+          :key="index"
+          class="d-flex align-items-start gap-2"
+        >
           <i class="bi bi-calendar-day mt-1 text-primary"></i>
+
           <span class="d-flex flex-column text-grey">
-            Segunda à sexta-feira <i class="fst-normal">14:00 às 18:00</i>
+            {{ item.label }}
+            <i class="fst-normal">{{ item.period }}</i>
           </span>
         </div>
-        <div class="d-flex align-items-start gap-2">
-          <i class="bi bi-calendar-day mt-1 text-primary"></i>
-          <span class="d-flex flex-column text-grey">
-            Sábado e Domingo <i class="fst-normal">14:00 às 18:00</i>
-          </span>
-        </div>
+
       </div>
     </div>
 
@@ -358,290 +377,443 @@
 </template>
 
 <script setup>
-  import { ref, onMounted, computed, nextTick } from 'vue'
-  import { useCartStore } from '@/stores/useCartStore'
-  import { useUserStore } from '@/stores/useUserStore'
-  import { useToast } from 'vue-toastification'
-  import IdentifyModal from './IdentifyModal.vue'
-  import AddressModal from '@/components/AddressModal.vue'
-  import DeliveryLocations from '@/components/DeliveryLocations.vue'
-  import OrderHistoryModal from '@/components/OrderHistoryModal.vue'
-  import ProfileModal from '@/components/Profile.vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
+import axios from 'axios'
 
-  const toast = useToast()
-  const cartStore = useCartStore()
-  const userStore = useUserStore()
+import { useCartStore } from '@/stores/useCartStore'
+import { useUserStore } from '@/stores/useUserStore'
+import { useToast } from 'vue-toastification'
 
-  // estado dos modais
-  const showProfileModal = ref(false)
-  const showModalLocation = ref(false)
-  const showModal = ref(false)
-  const showAddressModal = ref(false)
-  const showOrderHistoryModal = ref(false)
+import IdentifyModal from './IdentifyModal.vue'
+import AddressModal from '@/components/AddressModal.vue'
+import DeliveryLocations from '@/components/DeliveryLocations.vue'
+import OrderHistoryModal from '@/components/OrderHistoryModal.vue'
+import ProfileModal from '@/components/Profile.vue'
 
-  // Computed para verificar se o usuário está logado e tem ID
-  const isUserReady = computed(() => {
-    return userStore.isLogged && userStore.userId
+const toast = useToast()
+const cartStore = useCartStore()
+const userStore = useUserStore()
+
+// estado dos modais
+const showProfileModal = ref(false)
+const showModalLocation = ref(false)
+const showModal = ref(false)
+const showAddressModal = ref(false)
+const showOrderHistoryModal = ref(false)
+
+// COMPANY
+const company = ref(null)
+
+// Computed para verificar se o usuário está logado e tem ID
+const isUserReady = computed(() => {
+  return userStore.isLogged && userStore.userId
+})
+
+const groupedOpeningHours = computed(() => {
+  if (!company.value?.opening_hours) return []
+
+  const weekdayOrder = [0, 1, 2, 3, 4, 5, 6]
+
+  const weekdayMap = {
+    0: 'Domingo',
+    1: 'Segunda-feira',
+    2: 'Terça-feira',
+    3: 'Quarta-feira',
+    4: 'Quinta-feira',
+    5: 'Sexta-feira',
+    6: 'Sábado',
+  }
+
+  const groups = {}
+
+  company.value.opening_hours.forEach(hour => {
+    const period = hour.formatted_period
+
+    if (!groups[period]) {
+      groups[period] = []
+    }
+
+    groups[period].push(hour)
   })
 
-  // ========== FUNÇÃO HANDLE REORDER ==========
-  const handleReorder = (order) => {
-    console.log('🎯 Reordenando pedido completo:', order.id)
-    
-    if (!order || !order.items || order.items.length === 0) {
-      toast.error('Erro ao reordenar: pedido inválido')
-      return
+  const isConsecutive = (arr) => {
+    for (let i = 1; i < arr.length; i++) {
+      if (arr[i] !== arr[i - 1] + 1) return false
     }
-    
-    order.items.forEach((originalItem, index) => {
-      if (originalItem.isCombo) {
-        const comboItem = JSON.parse(JSON.stringify(originalItem))
-        comboItem.productId = comboItem.productId || comboItem.id
-        comboItem.finalPrice = comboItem.finalPrice || comboItem.price
-        comboItem.basePrice = comboItem.basePrice || comboItem.price
-        comboItem.hasComboSelection = true
-        comboItem.isComboItem = true
-        comboItem.isReorder = true
-        comboItem.reorderDate = new Date().toISOString()
-        comboItem.originalOrderId = order.id
-        
-        if (!comboItem.itemSelections && comboItem.comboDetails) {
-          comboItem.itemSelections = rebuildSelectionsFromDetails(comboItem)
-        }
-        
-        if (comboItem.selectedAddons && comboItem.selectedAddons.length) {
-          comboItem.addonsTotalPrice = comboItem.selectedAddons.reduce(
-            (sum, addon) => sum + (addon.price * (addon.quantity || 1)), 0
-          )
-        } else {
-          comboItem.selectedAddons = []
-          comboItem.addonsTotalPrice = 0
-        }
-        
-        comboItem.uniqueId = `${comboItem.productId}_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 6)}`
-        
-        delete comboItem.comboDetails
-        delete comboItem.customization
-        delete comboItem.createdAt
-        delete comboItem.updatedAt
-        
-        for (let i = 0; i < (comboItem.quantity || 1); i++) {
-          const comboCopy = JSON.parse(JSON.stringify(comboItem))
-          cartStore.add(comboCopy)
-        }
+    return true
+  }
+
+  const formatDays = (days) => {
+    const sorted = [...new Set(days)].sort((a, b) => a - b)
+
+    const weekdayMap = {
+      0: 'Domingo',
+      1: 'Segunda-feira',
+      2: 'Terça-feira',
+      3: 'Quarta-feira',
+      4: 'Quinta-feira',
+      5: 'Sexta-feira',
+      6: 'Sábado',
+    }
+
+    const isConsecutive = (arr) => {
+      for (let i = 1; i < arr.length; i++) {
+        if (arr[i] !== arr[i - 1] + 1) return false
+      }
+      return true
+    }
+
+    // Semana inteira
+    if (sorted.length === 7) return 'Todos os dias'
+
+    // Fim de semana
+    // if (sorted.length === 2 && sorted.includes(0) && sorted.includes(6)) {
+    //   return 'Fim de semana'
+    // }
+
+    // Detecta múltiplos blocos contínuos
+    const blocks = []
+    let temp = [sorted[0]]
+
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i] === sorted[i - 1] + 1) {
+        temp.push(sorted[i])
       } else {
-        const simpleItem = {
-          id: originalItem.id,
-          productId: originalItem.productId || originalItem.id,
-          name: originalItem.name,
-          description: originalItem.description,
-          price: originalItem.finalPrice || originalItem.price,
-          finalPrice: originalItem.finalPrice || originalItem.price,
-          oldPrice: originalItem.oldPrice,
-          originalPrice: originalItem.originalPrice || originalItem.price,
-          image: originalItem.image,
-          quantity: originalItem.quantity || 1,
-          isCombo: false,
-          cashback: originalItem.cashback || 0,
-          customization: originalItem.customization,
-          selectedSize: originalItem.selectedSize,
-          selectedFlavors: originalItem.selectedFlavors,
-          aditionals: originalItem.aditionals ? JSON.parse(JSON.stringify(originalItem.aditionals)) : [],
-          aditionalsState: originalItem.aditionalsState ? { ...originalItem.aditionalsState } : {},
-          isReorder: true,
-          reorderDate: new Date().toISOString(),
-          originalOrderId: order.id
-        }
-        
-        for (let i = 0; i < simpleItem.quantity; i++) {
-          const itemCopy = JSON.parse(JSON.stringify(simpleItem))
-          cartStore.add(itemCopy)
+        blocks.push(temp)
+        temp = [sorted[i]]
+      }
+    }
+    blocks.push(temp)
+
+    // monta label bonito
+    return blocks.map(block => {
+      if (block.length === 1) return weekdayMap[block[0]]
+      return `${weekdayMap[block[0]]} à ${weekdayMap[block[block.length - 1]]}`
+    }).join(', ')
+  }
+
+  return Object.entries(groups).map(([period, items]) => {
+    const weekdays = items.map(i => i.weekday)
+
+    return {
+      label: formatDays(weekdays),
+      period
+    }
+  })
+})
+const fetchCompany = async () => {
+  try {
+
+    const response = await axios.get('/api/company')
+
+    company.value = response.data
+
+  } catch (error) {
+    console.error('Erro ao carregar empresa:', error)
+  }
+}
+
+// ========== FUNÇÃO HANDLE REORDER ==========
+const handleReorder = (order) => {
+  console.log('🎯 Reordenando pedido completo:', order.id)
+
+  if (!order || !order.items || order.items.length === 0) {
+    toast.error('Erro ao reordenar: pedido inválido')
+    return
+  }
+
+  order.items.forEach((originalItem, index) => {
+    if (originalItem.isCombo) {
+      const comboItem = JSON.parse(JSON.stringify(originalItem))
+      comboItem.productId = comboItem.productId || comboItem.id
+      comboItem.finalPrice = comboItem.finalPrice || comboItem.price
+      comboItem.basePrice = comboItem.basePrice || comboItem.price
+      comboItem.hasComboSelection = true
+      comboItem.isComboItem = true
+      comboItem.isReorder = true
+      comboItem.reorderDate = new Date().toISOString()
+      comboItem.originalOrderId = order.id
+
+      if (!comboItem.itemSelections && comboItem.comboDetails) {
+        comboItem.itemSelections = rebuildSelectionsFromDetails(comboItem)
+      }
+
+      if (comboItem.selectedAddons && comboItem.selectedAddons.length) {
+        comboItem.addonsTotalPrice = comboItem.selectedAddons.reduce(
+          (sum, addon) => sum + (addon.price * (addon.quantity || 1)), 0
+        )
+      } else {
+        comboItem.selectedAddons = []
+        comboItem.addonsTotalPrice = 0
+      }
+
+      comboItem.uniqueId = `${comboItem.productId}_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 6)}`
+
+      delete comboItem.comboDetails
+      delete comboItem.customization
+      delete comboItem.createdAt
+      delete comboItem.updatedAt
+
+      for (let i = 0; i < (comboItem.quantity || 1); i++) {
+        const comboCopy = JSON.parse(JSON.stringify(comboItem))
+        cartStore.add(comboCopy)
+      }
+    } else {
+      const simpleItem = {
+        id: originalItem.id,
+        productId: originalItem.productId || originalItem.id,
+        name: originalItem.name,
+        description: originalItem.description,
+        price: originalItem.finalPrice || originalItem.price,
+        finalPrice: originalItem.finalPrice || originalItem.price,
+        oldPrice: originalItem.oldPrice,
+        originalPrice: originalItem.originalPrice || originalItem.price,
+        image: originalItem.image,
+        quantity: originalItem.quantity || 1,
+        isCombo: false,
+        cashback: originalItem.cashback || 0,
+        customization: originalItem.customization,
+        selectedSize: originalItem.selectedSize,
+        selectedFlavors: originalItem.selectedFlavors,
+        aditionals: originalItem.aditionals ? JSON.parse(JSON.stringify(originalItem.aditionals)) : [],
+        aditionalsState: originalItem.aditionalsState ? { ...originalItem.aditionalsState } : {},
+        isReorder: true,
+        reorderDate: new Date().toISOString(),
+        originalOrderId: order.id
+      }
+
+      for (let i = 0; i < simpleItem.quantity; i++) {
+        const itemCopy = JSON.parse(JSON.stringify(simpleItem))
+        cartStore.add(itemCopy)
+      }
+    }
+  })
+
+  const totalItens = order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)
+
+  toast.success(`${totalItens} item(ns) adicionado(s) ao carrinho!`, {
+    timeout: 3000
+  })
+
+  showOrderHistoryModal.value = false
+}
+
+const rebuildSelectionsFromDetails = (item) => {
+  if (!item.comboDetails) return null
+
+  const selections = {}
+
+  if (item.comboDetails.acompanhamento && item.comboItems) {
+    const acompanhamentoItem = item.comboItems.find(ci => ci.id === 'acompanhamento')
+
+    if (acompanhamentoItem && acompanhamentoItem.options) {
+      const choice = acompanhamentoItem.options.choices.find(c => c.name === item.comboDetails.acompanhamento)
+
+      if (choice) {
+        selections.acompanhamento = {
+          choice,
+          quantity: 1,
+          price: choice.price || 0
         }
       }
-    })
-    
-    const totalItens = order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)
-    toast.success(`${totalItens} item(ns) adicionado(s) ao carrinho!`, {
+    }
+  }
+
+  if (item.comboDetails.bebida && item.comboItems) {
+    const bebidaItem = item.comboItems.find(ci => ci.id === 'bebida')
+
+    if (bebidaItem && bebidaItem.options) {
+      const choice = bebidaItem.options.choices.find(c => c.name === item.comboDetails.bebida)
+
+      if (choice) {
+        selections.bebida = {
+          choice,
+          quantity: 1,
+          price: choice.price || 0
+        }
+      }
+    }
+  }
+
+  return Object.keys(selections).length > 0 ? selections : null
+}
+
+const closeOffcanvas = () => {
+  const offcanvasElement = document.getElementById('mobileMenu')
+
+  if (!offcanvasElement) return
+
+  if (window.bootstrap && window.bootstrap.Offcanvas) {
+    const offcanvas = window.bootstrap.Offcanvas.getInstance(offcanvasElement)
+
+    if (offcanvas) {
+      offcanvas.hide()
+    }
+  }
+
+  const backdrop = document.querySelector('.offcanvas-backdrop')
+
+  if (backdrop) {
+    backdrop.remove()
+  }
+
+  document.body.classList.remove('offcanvas-open')
+  document.body.style.overflow = ''
+  document.body.style.paddingRight = ''
+}
+
+const openAddressModal = () => {
+  closeOffcanvas()
+
+  setTimeout(() => {
+    showAddressModal.value = true
+  }, 150)
+}
+
+const openProfileModal = () => {
+  closeOffcanvas()
+
+  setTimeout(() => {
+    showProfileModal.value = true
+  }, 150)
+}
+
+const openLocationModal = () => {
+  closeOffcanvas()
+
+  setTimeout(() => {
+    showModalLocation.value = true
+  }, 150)
+}
+
+const openLoginModal = () => {
+  closeOffcanvas()
+
+  setTimeout(() => {
+    showModal.value = true
+  }, 150)
+}
+
+const openOrderHistoryMobile = () => {
+  closeOffcanvas()
+
+  setTimeout(() => {
+
+    if (!userStore.isLogged) {
+      toast.warning('Faça login para ver seus pedidos!', {
+        timeout: 3000
+      })
+
+      showModal.value = true
+      return
+    }
+
+    if (!userStore.userId) {
+      toast.error('Erro ao carregar dados do usuário. Por favor, faça login novamente.', {
+        timeout: 4000
+      })
+
+      userStore.logout()
+      showModal.value = true
+
+      return
+    }
+
+    showOrderHistoryModal.value = true
+
+  }, 150)
+}
+
+const closeOffcanvasAndNavigate = (page) => {
+  closeOffcanvas()
+
+  setTimeout(() => {
+    window.dispatchEvent(
+      new CustomEvent('mobile-navigation', {
+        detail: { page }
+      })
+    )
+  }, 200)
+}
+
+const logoutMobile = () => {
+  closeOffcanvas()
+
+  setTimeout(() => {
+    logout()
+  }, 150)
+}
+
+const handleProfileUpdate = (updatedProfile) => {
+  console.log('Perfil atualizado:', updatedProfile)
+
+  toast.success('Perfil atualizado com sucesso!', {
+    timeout: 3000
+  })
+}
+
+const openOrderHistory = () => {
+  if (!userStore.isLogged) {
+    toast.warning('Faça login para ver seus pedidos!', {
       timeout: 3000
     })
-    
+
+    showModal.value = true
+
+    return
+  }
+
+  if (!userStore.userId) {
+    toast.error('Erro ao carregar dados do usuário. Por favor, faça login novamente.', {
+      timeout: 4000
+    })
+
+    userStore.logout()
+    showModal.value = true
+
+    return
+  }
+
+  showOrderHistoryModal.value = true
+}
+
+const handleIdentify = ({ whatsapp: wpp, fullName: name }) => {
+
+  const userData = {
+    id: Date.now(),
+    fullName: name,
+    whatsapp: wpp,
+    email: ''
+  }
+
+  userStore.login(userData)
+
+  showModal.value = false
+
+  toast.success(`Bem-vindo(a), ${name}! Login realizado com sucesso!`, {
+    timeout: 4000
+  })
+}
+
+onMounted(() => {
+  userStore.loadUserFromStorage()
+  fetchCompany()
+})
+
+const logout = () => {
+
+  const userName = userStore.fullName || 'Usuário'
+
+  userStore.logout()
+
+  if (showOrderHistoryModal.value) {
     showOrderHistoryModal.value = false
   }
 
-  const rebuildSelectionsFromDetails = (item) => {
-    if (!item.comboDetails) return null
-    const selections = {}
-    
-    if (item.comboDetails.acompanhamento && item.comboItems) {
-      const acompanhamentoItem = item.comboItems.find(ci => ci.id === 'acompanhamento')
-      if (acompanhamentoItem && acompanhamentoItem.options) {
-        const choice = acompanhamentoItem.options.choices.find(c => c.name === item.comboDetails.acompanhamento)
-        if (choice) {
-          selections.acompanhamento = { choice, quantity: 1, price: choice.price || 0 }
-        }
-      }
-    }
-    
-    if (item.comboDetails.bebida && item.comboItems) {
-      const bebidaItem = item.comboItems.find(ci => ci.id === 'bebida')
-      if (bebidaItem && bebidaItem.options) {
-        const choice = bebidaItem.options.choices.find(c => c.name === item.comboDetails.bebida)
-        if (choice) {
-          selections.bebida = { choice, quantity: 1, price: choice.price || 0 }
-        }
-      }
-    }
-    
-    return Object.keys(selections).length > 0 ? selections : null
-  }
-
-  // Função para fechar o offcanvas CORRETAMENTE
-  const closeOffcanvas = () => {
-    const offcanvasElement = document.getElementById('mobileMenu')
-    if (!offcanvasElement) return
-    
-    // Verifica se tem uma instância do Bootstrap
-    if (window.bootstrap && window.bootstrap.Offcanvas) {
-      const offcanvas = window.bootstrap.Offcanvas.getInstance(offcanvasElement)
-      if (offcanvas) {
-        offcanvas.hide()
-      }
-    }
-    
-    // Remove qualquer backdrop remanescente
-    const backdrop = document.querySelector('.offcanvas-backdrop')
-    if (backdrop) {
-      backdrop.remove()
-    }
-    
-    // Restaura o body
-    document.body.classList.remove('offcanvas-open')
-    document.body.style.overflow = ''
-    document.body.style.paddingRight = ''
-  }
-
-  // Abrir modal de endereços - VERSÃO CORRIGIDA
-  const openAddressModal = () => {
-    // Fecha o offcanvas primeiro
-    closeOffcanvas()
-    // Pequeno delay para garantir que fechou
-    setTimeout(() => {
-      showAddressModal.value = true
-    }, 150)
-  }
-
-  // Abrir modal de perfil
-  const openProfileModal = () => {
-    closeOffcanvas()
-    setTimeout(() => {
-      showProfileModal.value = true
-    }, 150)
-  }
-
-  // Abrir modal de locais de entrega
-  const openLocationModal = () => {
-    closeOffcanvas()
-    setTimeout(() => {
-      showModalLocation.value = true
-    }, 150)
-  }
-
-  // Abrir modal de login
-  const openLoginModal = () => {
-    closeOffcanvas()
-    setTimeout(() => {
-      showModal.value = true
-    }, 150)
-  }
-
-  // Abrir histórico de pedidos
-  const openOrderHistoryMobile = () => {
-    closeOffcanvas()
-    
-    setTimeout(() => {
-      if (!userStore.isLogged) {
-        toast.warning('Faça login para ver seus pedidos!', { timeout: 3000 })
-        showModal.value = true
-        return
-      }
-      
-      if (!userStore.userId) {
-        toast.error('Erro ao carregar dados do usuário. Por favor, faça login novamente.', { timeout: 4000 })
-        userStore.logout()
-        showModal.value = true
-        return
-      }
-      
-      showOrderHistoryModal.value = true
-    }, 150)
-  }
-
-  // Navegação
-  const closeOffcanvasAndNavigate = (page) => {
-    closeOffcanvas()
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('mobile-navigation', { detail: { page } }))
-    }, 200)
-  }
-
-  // Logout mobile
-  const logoutMobile = () => {
-    closeOffcanvas()
-    setTimeout(() => {
-      logout()
-    }, 150)
-  }
-
-  const handleProfileUpdate = (updatedProfile) => {
-    console.log('Perfil atualizado:', updatedProfile)
-    toast.success('Perfil atualizado com sucesso!', { timeout: 3000 })
-  }
-
-  const openOrderHistory = () => {
-    if (!userStore.isLogged) {
-      toast.warning('Faça login para ver seus pedidos!', { timeout: 3000 })
-      showModal.value = true
-      return
-    }
-    
-    if (!userStore.userId) {
-      toast.error('Erro ao carregar dados do usuário. Por favor, faça login novamente.', { timeout: 4000 })
-      userStore.logout()
-      showModal.value = true
-      return
-    }
-    
-    showOrderHistoryModal.value = true
-  }
-
-  const handleIdentify = ({ whatsapp: wpp, fullName: name }) => {
-    const userData = {
-      id: Date.now(),
-      fullName: name,
-      whatsapp: wpp,
-      email: ''
-    }
-    
-    userStore.login(userData)
-    showModal.value = false
-    
-    toast.success(`Bem-vindo(a), ${name}! Login realizado com sucesso!`, { timeout: 4000 })
-  }
-
-  onMounted(() => {
-    userStore.loadUserFromStorage()
+  toast.info(`Até mais, ${userName}! Você saiu da sua conta.`, {
+    timeout: 4000
   })
-
-  const logout = () => {
-    const userName = userStore.fullName || 'Usuário'
-    userStore.logout()
-    
-    if (showOrderHistoryModal.value) {
-      showOrderHistoryModal.value = false
-    }
-    
-    toast.info(`Até mais, ${userName}! Você saiu da sua conta.`, { timeout: 4000 })
-  }
+}
 </script>
 
 <style scoped>
