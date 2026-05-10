@@ -34,11 +34,4 @@ class VerificationCodeMail extends Mailable
             view: 'emails.verification-code',
         );
     }
-
-    // public function build()
-    // {
-    //     return $this->from('waggner.447@gmail.com', 'WHI')
-    //         ->subject('Código de Verificação - Seu Pedido')
-    //         ->view('emails.verification-code'); 
-    // }
 }

@@ -64,6 +64,7 @@ Route::get('/index', [HomePageController::class, 'index'])->name('index');
 Route::get('/api/products', [HomePageController::class, 'products']);
 Route::get('/api/categories', [HomePageController::class, 'categories']);
 Route::get('/api/products/highlights', [HomePageController::class, 'highlights']);
+Route::get('/api/company', [HomePageController::class, 'company']);
 
 // Rotas API para Pedidos e Cliente (autenticação necessária com guard client)
 Route::middleware('auth:client')->group(function () {

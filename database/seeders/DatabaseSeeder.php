@@ -19,7 +19,8 @@ class DatabaseSeeder extends Seeder
             PermissionsSeeder::class,
             ModelHasRoleSeeder::class,
             SettingEmailSeeder::class,
-            ClientSeeder::class
+            ClientSeeder::class,
+            CompanySeeder::class,
         ]);
         
     }
