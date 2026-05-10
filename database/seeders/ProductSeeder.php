@@ -33,7 +33,7 @@ class ProductSeeder extends Seeder
                     'price' => 109.90,
                     'oldPrice' => 119.90,
                     'cashback' => 5,
-                    'category' => 'hamburguers',
+                    'category' => 'Hamburguers',
                     'productType' => 'food',
                     'isCombo' => false,
 
@@ -64,7 +64,7 @@ class ProductSeeder extends Seeder
                     'price' => 45.90,
                     'oldPrice' => 0,
                     'cashback' => 8,
-                    'category' => 'pizzas',
+                    'category' => 'Pizzas',
                     'productType' => 'food',
                     'isCombo' => false,
 
@@ -99,7 +99,7 @@ class ProductSeeder extends Seeder
                     'price' => 59.90,
                     'oldPrice' => 89.90,
                     'cashback' => 10,
-                    'category' => 'combos',
+                    'category' => 'Combos',
                     'productType' => 'combo',
                     'isCombo' => true,
 
@@ -155,7 +155,7 @@ class ProductSeeder extends Seeder
                     'price' => 69.90,
                     'oldPrice' => 99.90,
                     'cashback' => 8,
-                    'category' => 'combos',
+                    'category' => 'Combos',
                     'productType' => 'combo',
                     'isCombo' => true,
 
@@ -218,7 +218,7 @@ class ProductSeeder extends Seeder
                     'price' => 39.90,
                     'oldPrice' => 59.90,
                     'cashback' => 5,
-                    'category' => 'combos',
+                    'category' => 'Combos',
                     'productType' => 'combo',
                     'isCombo' => true,
 
@@ -270,7 +270,7 @@ class ProductSeeder extends Seeder
                     'description' => 'Açaí puro da Amazônia, sem xarope, acompanha granola',
                     'price' => 19.90,
                     'cashback' => 3,
-                    'category' => 'acai',
+                    'category' => 'Açaí',
                     'productType' => 'dessert',
                     'isCombo' => false,
 
@@ -293,7 +293,7 @@ class ProductSeeder extends Seeder
                 ],
 
                 // =========================
-                // 🥤 BEBIDAS
+                // 🥤 Bedidas
                 // =========================
                 [
                     'name' => 'Coca-Cola 2L',
@@ -301,7 +301,7 @@ class ProductSeeder extends Seeder
                     'price' => 12.90,
                     'oldPrice' => 0,
                     'cashback' => 2,
-                    'category' => 'bebidas',
+                    'category' => 'Bedidas',
                     'productType' => 'beverage',
                     'isCombo' => false,
 
@@ -322,7 +322,7 @@ class ProductSeeder extends Seeder
                     'price' => 9.90,
                     'oldPrice' => 0,
                     'cashback' => 2,
-                    'category' => 'bebidas',
+                    'category' => 'Bedidas',
                     'productType' => 'beverage',
                     'isCombo' => false,
 
@@ -338,7 +338,7 @@ class ProductSeeder extends Seeder
                     'price' => 18.90,
                     'oldPrice' => 0,
                     'cashback' => 3,
-                    'category' => 'sobremesas',
+                    'category' => 'Sobremesas',
                     'productType' => 'dessert',
                     'isCombo' => false,
 
