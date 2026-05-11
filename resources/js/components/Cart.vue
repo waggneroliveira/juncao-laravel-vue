@@ -24,7 +24,7 @@
             >
                 <div class="d-flex justify-content-center align-items-center gap-2">
                     <!-- Foto ou Avatar -->
-                    <div class="icon-user rounded-3 d-flex justify-content-center align-items-center p-0 overflow-hidden" style="width: 48px; height: 48px;">
+                    <div class="icon-user rounded-5 d-flex justify-content-center align-items-center p-0 overflow-hidden" style="width: 48px; height: 48px;">
                         <!-- Se tem foto, exibir a imagem -->
                         <img 
                             v-if="avatarUrl"

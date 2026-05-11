@@ -107,26 +107,25 @@
           </button>
         </div>
 
-        <div class="d-flex justify-content-center align-items-center gap-2">
+        <div class="d-flex justify-content-center align-items-center gap-2 dropdown"
+        role="button"
+        data-bs-toggle="dropdown"
+        aria-expanded="false"
+        >
           <svg width="24" height="27" viewBox="0 0 24 27" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12.3556 14.8065C16.3556 14.6323 19.5556 11.3661 19.5556 7.40323C19.5556 3.30968 16.1778 0 12 0C7.82222 0 4.44444 3.30968 4.44444 7.40323C4.44444 11.3661 7.64444 14.5887 11.6444 14.8065C5.06667 15.0242 0 20.1629 0 27H1.77778C1.77778 20.9032 6.17778 16.5484 12 16.5484C17.8222 16.5484 22.2222 20.9032 22.2222 27H24C24 20.1629 18.9333 15.0242 12.3556 14.8065ZM6.22222 7.44677C6.22222 4.31129 8.8 1.78548 12 1.78548C15.2 1.78548 17.7778 4.31129 17.7778 7.44677C17.7778 10.5823 15.2 13.1081 12 13.1081C8.8 13.1081 6.22222 10.5387 6.22222 7.44677Z" fill="var(--primary-dark)"/>
           </svg>
 
-          <div class="dropdown">
+          <div>
             <!-- Botão dos 3 pontinhos -->
-            <div
-              class="d-flex flex-column gap-1"
-              role="button"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
-            >
+            <div class="d-flex flex-column gap-1">
               <span class="points rounded-pill"></span>
               <span class="points rounded-pill"></span>
               <span class="points rounded-pill"></span>
             </div>
 
             <!-- Menu -->
-            <ul class="dropdown-menu custom-dropdown">
+            <ul class="dropdown-menu custom-dropdown mt-2">
               <a class="dropdown-item" href="#" @click="showAddressModal = true">
                 Meus Endereços
               </a>
