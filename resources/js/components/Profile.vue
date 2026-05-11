@@ -248,19 +248,18 @@ const form = ref({
   avatar: null
 })
 
-// Computed para URL do avatar na visualização
+// Computed para URL do avatar
 const displayAvatarUrl = computed(() => {
   const avatar = profile.value.avatar
   if (!avatar) return null
   
-  // Se já é URL completa ou base64, retorna como está
+  // Se já é URL completa, retorna como está
   if (avatar.startsWith('http') || avatar.startsWith('data:')) {
     return avatar
   }
   
-  // Caso contrário, adiciona o base URL
-  const baseUrl = window.location.origin
-  return avatar.startsWith('/') ? `${baseUrl}${avatar}` : `${baseUrl}/${avatar}`
+  // Se é caminho relativo, adiciona base URL
+  return avatar.startsWith('/') ? `${window.location.origin}${avatar}` : `${window.location.origin}/${avatar}`
 })
 
 // Computed para URL do avatar no formulário de edição

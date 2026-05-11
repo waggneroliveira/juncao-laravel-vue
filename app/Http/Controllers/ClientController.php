@@ -129,7 +129,7 @@ class ClientController extends Controller
                     'nome' => $client->name,
                     'telefone' => $client->phone,
                     'email' => $client->email,
-                    'avatar' => $client->path_image ? asset($client->path_image) : null,
+                    'avatar' => $client->path_image ? asset($client->path_image) : null, // Retorna URL completa
                     'created_at' => $client->created_at
                 ]
             ]);
@@ -178,18 +178,6 @@ class ClientController extends Controller
             $client->email = $request->email;
             $client->save();
             
-            // Disparar evento de atualização
-            $eventData = [
-                'id' => $client->id,
-                'fullName' => $client->name,
-                'whatsapp' => $client->phone,
-                'email' => $client->email,
-                'birth_date' => $client->birth_date,
-                'gender' => $client->gender
-            ];
-            
-            event(new \App\Events\UserProfileUpdated($client));
-            
             return response()->json([
                 'success' => true,
                 'message' => 'Perfil atualizado com sucesso!',
@@ -198,7 +186,7 @@ class ClientController extends Controller
                     'nome' => $client->name,
                     'telefone' => $client->phone,
                     'email' => $client->email,
-                    'avatar' => $client->path_image ? asset($client->path_image) : null
+                    'avatar' => $client->path_image ? asset($client->path_image) : null // URL completa
                 ]
             ]);
             
@@ -211,7 +199,6 @@ class ClientController extends Controller
         }
     }
     
-
     public function updateAvatar(Request $request)
     {
         try {
@@ -225,7 +212,7 @@ class ClientController extends Controller
             }
             
             $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
-                'avatar' => 'required|file|image|max:5120' // 5MB max
+                'avatar' => 'required|file|image|max:5120'
             ]);
             
             if ($validator->fails()) {
@@ -242,7 +229,9 @@ class ClientController extends Controller
             
             // Deletar avatar antigo
             if ($client->path_image) {
-                Storage::disk('public')->delete($client->path_image);
+                // Remove o prefixo 'storage/' se existir para deletar
+                $oldPath = str_replace('storage/', '', $client->path_image);
+                Storage::disk('public')->delete($oldPath);
             }
             
             // Processar imagem
@@ -251,15 +240,17 @@ class ClientController extends Controller
                 ->toWebp(quality: 90)
                 ->toString();
             
+            // Salvar sem o prefixo storage no disco
             Storage::disk('public')->put($this->pathUpload . $filename, $image);
             
-            $client->path_image = $this->pathUpload . $filename;
+            // 🔥 SALVAR NO BANCO COM O PREFIXO storage/
+            $client->path_image = 'storage/' . $this->pathUpload . $filename;
             $client->save();
             
             return response()->json([
                 'success' => true,
                 'message' => 'Avatar atualizado com sucesso!',
-                'avatar' => asset('storage/' . $this->pathUpload . $filename)
+                'avatar' => asset($client->path_image) // Retorna URL completa
             ]);
             
         } catch (\Exception $e) {
@@ -269,8 +260,7 @@ class ClientController extends Controller
                 'message' => 'Erro ao atualizar avatar: ' . $e->getMessage()
             ], 500);
         }
-    }
-    
+    }  
 
     public function deleteAvatar(Request $request)
     {
