@@ -14,7 +14,7 @@ use Intervention\Image\ImageManager;
 
 class ClientController extends Controller
 {
-    protected $pathUpload = 'admin/uploads/images/perfil/';
+    protected $pathUpload = 'clients/avatars/';
     public function index()
     {
         $clients = Client::all();
@@ -80,8 +80,7 @@ class ClientController extends Controller
             $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.webp';
 
             if ($client->path_image) {
-                $oldPath = str_replace('storage/', '', $client->path_image);
-                Storage::disk('public')->delete($oldPath);
+                Storage::disk('public')->delete($client->path_image);
             }
 
             if ($mime === 'image/svg+xml') {
@@ -98,7 +97,7 @@ class ClientController extends Controller
                 Storage::disk('public')->put($this->pathUpload . $filename, $image);
             }
 
-            $validated['path_image'] = 'storage/' . $this->pathUpload . $filename;
+            $validated['path_image'] = $this->pathUpload . $filename;
         }
 
         if (isset($request->delete_path_image)) {
@@ -243,8 +242,7 @@ class ClientController extends Controller
             
             // Deletar avatar antigo
             if ($client->path_image) {
-                $oldPath = str_replace('storage/', '', $client->path_image);
-                Storage::disk('public')->delete($oldPath);
+                Storage::disk('public')->delete($client->path_image);
             }
             
             // Processar imagem
@@ -255,14 +253,13 @@ class ClientController extends Controller
             
             Storage::disk('public')->put($this->pathUpload . $filename, $image);
             
-            $avatarPath = 'storage/' . $this->pathUpload . $filename;
-            $client->path_image = $avatarPath;
+            $client->path_image = $this->pathUpload . $filename;
             $client->save();
             
             return response()->json([
                 'success' => true,
                 'message' => 'Avatar atualizado com sucesso!',
-                'avatar' => asset($avatarPath)
+                'avatar' => asset('storage/' . $this->pathUpload . $filename)
             ]);
             
         } catch (\Exception $e) {

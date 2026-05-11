@@ -226,6 +226,7 @@ class AuthClientController extends Controller
                     'name' => $client->name,
                     'email' => $client->email,
                     'whatsapp' => $client->phone,
+                    'path_image' => $client->path_image ?? null,
                     'isLogged' => true
                 ]
             ]);
@@ -331,6 +332,7 @@ class AuthClientController extends Controller
                     'id' => $client->id,
                     'name' => $client->name,
                     'whatsapp' => $client->phone,
+                    'path_image' => $client->path_image ?? null,
                     'isLogged' => true,
                     'delivery_method' => $client->delivery_method,
                     'payment_method' => $client->payment_method,
@@ -545,6 +547,7 @@ class AuthClientController extends Controller
                     'name' => $client->name,
                     'email' => $client->email,
                     'phone' => $client->phone,
+                    'path_image' => $client->path_image ?? null,
                     'delivery_method' => $client->delivery_method ? json_decode($client->delivery_method, true) : null,
                     'payment_method' => $client->payment_method ?? null,
                     'selected_address_id' => $client->selected_address_id ?? null

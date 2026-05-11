@@ -26,8 +26,8 @@
             <div class="text-center mb-4">
               <div class="avatar-container mb-3" @click="triggerImageUpload">
                 <img 
-                  v-if="profile.avatar" 
-                  :src="profile.avatar" 
+                  v-if="displayAvatarUrl" 
+                  :src="displayAvatarUrl" 
                   class="avatar-img"
                   alt="Avatar"
                 >
@@ -96,8 +96,8 @@
               <div class="col-12 text-center mb-3">
                 <div class="avatar-container-edit mb-2" @click="triggerImageUpload">
                   <img 
-                    v-if="form.avatar" 
-                    :src="form.avatar" 
+                    v-if="displayFormAvatarUrl" 
+                    :src="displayFormAvatarUrl" 
                     class="avatar-img-edit"
                     alt="Avatar"
                   >
@@ -208,7 +208,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useUserStore } from '@/stores/useUserStore'
 import axios from 'axios'
@@ -248,6 +248,41 @@ const form = ref({
   avatar: null
 })
 
+// Computed para URL do avatar na visualização
+const displayAvatarUrl = computed(() => {
+  const avatar = profile.value.avatar
+  if (!avatar) return null
+  
+  // Se já é URL completa ou base64, retorna como está
+  if (avatar.startsWith('http') || avatar.startsWith('data:')) {
+    return avatar
+  }
+  
+  // Caso contrário, adiciona o base URL
+  const baseUrl = window.location.origin
+  return avatar.startsWith('/') ? `${baseUrl}${avatar}` : `${baseUrl}/${avatar}`
+})
+
+// Computed para URL do avatar no formulário de edição
+const displayFormAvatarUrl = computed(() => {
+  const avatar = form.value.avatar
+  if (!avatar) return null
+  
+  // Se é preview de upload (base64)
+  if (avatar.startsWith('data:')) {
+    return avatar
+  }
+  
+  // Se já é URL completa
+  if (avatar.startsWith('http')) {
+    return avatar
+  }
+  
+  // Caso contrário, adiciona o base URL
+  const baseUrl = window.location.origin
+  return avatar.startsWith('/') ? `${baseUrl}${avatar}` : `${baseUrl}/${avatar}`
+})
+
 // Buscar perfil do backend
 const loadProfile = async () => {
   if (!userStore.isLogged) return
@@ -258,6 +293,31 @@ const loadProfile = async () => {
     
     if (response.data.success) {
       const data = response.data.profile
+      
+      // Função para corrigir a URL do avatar
+      const fixAvatarUrl = (avatar) => {
+        if (!avatar) return null
+        
+        // Se já é URL completa ou base64, retorna como está
+        if (avatar.startsWith('http') || avatar.startsWith('data:')) {
+          return avatar
+        }
+        
+        // Se já tem caminho (ex: storage/avatars/avatar.webp)
+        if (avatar.includes('/')) {
+          const baseUrl = window.location.origin
+          return avatar.startsWith('/') ? `${baseUrl}${avatar}` : `${baseUrl}/${avatar}`
+        }
+        
+        // Se é apenas o nome do arquivo (ex: avatar_5_1778499422.webp)
+        const baseUrl = window.location.origin
+        // 🔥 AJUSTE ESTE CAMINHO DE ACORDO COM SEU PROJETO
+        return `${baseUrl}/storage/avatars/${avatar}`
+      }
+      
+      // Corrigir a URL do avatar
+      const correctedAvatar = fixAvatarUrl(data.avatar)
+      
       profile.value = {
         id: data.id,
         nome: data.nome,
@@ -265,7 +325,7 @@ const loadProfile = async () => {
         email: data.email,
         dataNascimento: data.data_nascimento || '',
         genero: data.genero || '',
-        avatar: data.avatar
+        avatar: correctedAvatar  // Usar URL corrigida
       }
       form.value = { ...profile.value }
       
@@ -274,6 +334,7 @@ const loadProfile = async () => {
         userStore.fullName = data.nome
         userStore.whatsapp = data.telefone
         userStore.email = data.email
+        userStore.pathImage = correctedAvatar  // Salvar URL corrigida
         userStore.saveToStorage()
       }
     }
@@ -306,13 +367,14 @@ const saveProfileToBackend = async () => {
         email: data.email,
         dataNascimento: data.data_nascimento,
         genero: data.genero,
-        avatar: data.avatar
+        avatar: data.avatar  // Mantém a URL como vem do backend
       }
       
       // Sincronizar com userStore
       userStore.fullName = data.nome
       userStore.whatsapp = data.telefone
       userStore.email = data.email
+      userStore.pathImage = data.avatar  // Mantém a URL original
       userStore.saveToStorage()
       
       // Disparar eventos
@@ -322,7 +384,8 @@ const saveProfileToBackend = async () => {
         detail: { 
           fullName: data.nome,
           whatsapp: data.telefone,
-          email: data.email
+          email: data.email,
+          avatar: data.avatar  // Inclui o avatar
         } 
       }))
       
@@ -355,14 +418,27 @@ const uploadAvatar = async (file) => {
     })
     
     if (response.data.success) {
-      const avatarUrl = response.data.avatar
+      // Mantém a URL como o backend retornou (relativa)
+      let avatarUrl = response.data.avatar
+      
+      console.log('🖼️ Avatar URL do backend:', avatarUrl)
+      
+      // Salva a URL original (relativa) no componente
       profile.value.avatar = avatarUrl
       if (view.value === 'edit') {
         form.value.avatar = avatarUrl
       }
       
-      // Atualizar userStore se necessário
+      // Atualizar store com a URL original (relativa)
+      userStore.pathImage = avatarUrl
+      userStore.saveToStorage()
+      
+      // Disparar eventos com a URL original
       window.dispatchEvent(new CustomEvent('user-data-updated', { 
+        detail: { avatar: avatarUrl } 
+      }))
+      
+      window.dispatchEvent(new CustomEvent('profile-updated', { 
         detail: { avatar: avatarUrl } 
       }))
       
@@ -434,7 +510,7 @@ const handleImageUpload = async (event) => {
     return
   }
   
-  // Preview imediato
+  // Preview imediato (base64)
   const reader = new FileReader()
   reader.onload = (e) => {
     if (view.value === 'edit') {
@@ -459,7 +535,7 @@ const handleImageUpload = async (event) => {
 const validateForm = () => {
   errors.value = {}
   
-  // 🔥 VALIDAÇÃO DO NOME - APENAS PRIMEIRO NOME (sem exigir sobrenome)
+  // Validação do Nome
   if (!form.value.nome || form.value.nome.trim() === '') {
     errors.value.nome = 'Nome é obrigatório'
   } else if (form.value.nome.trim().length < 3) {

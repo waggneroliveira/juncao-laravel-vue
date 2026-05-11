@@ -7,6 +7,7 @@ export const useUserStore = defineStore('user', {
     fullName: '',
     whatsapp: '',
     email: '',
+    pathImage: null,
     isLogged: false,
     selectedAddress: null,
     deliveryMethod: null,
@@ -76,6 +77,7 @@ export const useUserStore = defineStore('user', {
           this.fullName = client.name
           this.whatsapp = client.phone
           this.email = emailToUse  // 🔥 SALVAR O EMAIL
+          this.pathImage = client.path_image || null
           this.isLogged = true
           
           // 4. Carregar métodos salvos
@@ -103,7 +105,8 @@ export const useUserStore = defineStore('user', {
             deliveryMethod: this.deliveryMethod,
             paymentMethod: this.paymentMethod,
             selectedAddress: this.selectedAddress,
-            email: this.email
+            email: this.email,
+            hasAvatar: !!this.pathImage
           })
           
           return true
@@ -130,10 +133,34 @@ export const useUserStore = defineStore('user', {
         this.fullName = profileData.nome || this.fullName
         this.whatsapp = profileData.telefone || this.whatsapp
         this.email = profileData.email || this.email
+        this.pathImage = profileData.avatar || this.pathImage // 👈 ADICIONADO: sincronizar avatar
         this.saveToStorage()
         this.dispatchEvents()
       }
     },
+    
+    /**
+     * 🔥 ATUALIZAR AVATAR (NOVO MÉTODO)
+     */
+    updateAvatar(avatarUrl) {
+      console.log('🖼️ Atualizando avatar no store:', avatarUrl)
+      this.pathImage = avatarUrl
+      this.saveToStorage()
+      
+      // Disparar evento específico para o avatar
+      window.dispatchEvent(new CustomEvent('user-data-updated', { 
+        detail: { 
+          avatar: avatarUrl,
+          timestamp: Date.now()
+        }
+      }))
+      
+      // Forçar atualização do cart
+      window.dispatchEvent(new CustomEvent('force-cart-update', { 
+        detail: { source: 'avatar-update', timestamp: Date.now() }
+      }))
+    },
+    
     /**
      * 🔥 CARREGAR ENDEREÇOS DO USUÁRIO (após autenticação)
      */
@@ -191,7 +218,8 @@ export const useUserStore = defineStore('user', {
         paymentMethod: this.paymentMethod,
         selectedAddress: this.selectedAddress,
         isLogged: true,
-        fullName: this.fullName
+        fullName: this.fullName,
+        avatar: this.pathImage // 👈 ADICIONADO: incluir avatar nos eventos
       }
       
       window.dispatchEvent(new CustomEvent('user-data-updated', { detail: eventData }))
@@ -211,6 +239,7 @@ export const useUserStore = defineStore('user', {
       this.fullName = userData.fullName || ''
       this.whatsapp = userData.whatsapp || ''
       this.email = userData.email || ''
+      this.pathImage = userData.pathImage || null
       this.isLogged = true
       
       if (userData.selectedAddress) {
@@ -331,6 +360,7 @@ export const useUserStore = defineStore('user', {
       this.fullName = ''
       this.whatsapp = ''
       this.email = ''
+      this.pathImage = null
       this.isLogged = false
       this.selectedAddress = null
       this.deliveryMethod = null
@@ -353,7 +383,7 @@ export const useUserStore = defineStore('user', {
         console.log(`🗑️ Removido do localStorage: ${key}`)
       })
       
-      // 🔥 LIMPAR TAMBÉM O SESSION STORAGE SE HOUVER
+      // 🔥 LIMBAR TAMBÉM O SESSION STORAGE SE HOUVER
       sessionStorage.clear()
       
       // Disparar eventos para atualizar o Cart
@@ -373,15 +403,23 @@ export const useUserStore = defineStore('user', {
     },
     
     saveToStorage() {
-      localStorage.setItem('userData', JSON.stringify({
+      const userData = {
         id: this.id,
         fullName: this.fullName,
         whatsapp: this.whatsapp,
         email: this.email,
+        pathImage: this.pathImage, // 👈 GARANTIR QUE O AVATAR É SALVO
         selectedAddress: this.selectedAddress,
         deliveryMethod: this.deliveryMethod,
-        paymentMethod: this.paymentMethod
-      }))
+        paymentMethod: this.paymentMethod,
+        isLogged: this.isLogged
+      }
+      
+      localStorage.setItem('userData', JSON.stringify(userData))
+      console.log('💾 Dados salvos no storage:', {
+        hasAvatar: !!this.pathImage,
+        avatarUrl: this.pathImage
+      })
     },
     
     loadUserFromStorage() {
@@ -393,15 +431,33 @@ export const useUserStore = defineStore('user', {
           this.fullName = data.fullName || ''
           this.whatsapp = data.whatsapp || ''
           this.email = data.email || ''
+          this.pathImage = data.pathImage || null // 👈 CARREGAR AVATAR
           this.selectedAddress = data.selectedAddress || null
           this.deliveryMethod = data.deliveryMethod || null
           this.paymentMethod = data.paymentMethod || null
           this.isLogged = true
           
-          console.log('📦 Usuário carregado do storage')
+          console.log('📦 Usuário carregado do storage', {
+            hasAvatar: !!this.pathImage,
+            avatarUrl: this.pathImage
+          })
+          
+          // Disparar evento com o avatar carregado
+          if (this.pathImage) {
+            window.dispatchEvent(new CustomEvent('user-data-loaded', { 
+              detail: { 
+                avatar: this.pathImage,
+                fullName: this.fullName,
+                whatsapp: this.whatsapp,
+                email: this.email
+              }
+            }))
+          }
         } catch (error) {
           console.error('Erro ao carregar:', error)
         }
+      } else {
+        console.log('📦 Nenhum dado encontrado no storage')
       }
     }
   }

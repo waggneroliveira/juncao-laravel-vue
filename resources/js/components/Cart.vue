@@ -23,9 +23,26 @@
                 @click="showModal = true"
             >
                 <div class="d-flex justify-content-center align-items-center gap-2">
-                    <div class="icon-user rounded-3 d-flex justify-content-center align-items-center p-3">
-                        <svg width="20" height="23" viewBox="0 0 20 23" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M10.2963 12.6129C13.6296 12.4645 16.2963 9.68226 16.2963 6.30645C16.2963 2.81936 13.4815 0 10 0C6.51852 0 3.7037 2.81936 3.7037 6.30645C3.7037 9.68226 6.37037 12.4274 9.7037 12.6129C4.22222 12.7984 0 17.1758 0 23H1.48148C1.48148 17.8065 5.14815 14.0968 10 14.0968C14.8519 14.0968 18.5185 17.8065 18.5185 23H20C20 17.1758 15.7778 12.7984 10.2963 12.6129ZM5.18518 6.34355C5.18518 3.67258 7.33333 1.52097 10 1.52097C12.6667 1.52097 14.8148 3.67258 14.8148 6.34355C14.8148 9.01452 12.6667 11.1661 10 11.1661C7.33333 11.1661 5.18518 8.97742 5.18518 6.34355Z" fill="#595959"/>
+                    <!-- Foto ou Avatar -->
+                    <div class="icon-user rounded-3 d-flex justify-content-center align-items-center p-0 overflow-hidden" style="width: 48px; height: 48px;">
+                        <!-- Se tem foto, exibir a imagem -->
+                        <img 
+                            v-if="avatarUrl"
+                            :src="avatarUrl"
+                            :alt="userStore.fullName"
+                            style="width: 100%; height: 100%; object-fit: cover;"
+                            @error="handleImageError"
+                        >
+                        <!-- Se não tem foto, exibir avatar genérico -->
+                        <svg 
+                            v-else
+                            width="24" 
+                            height="28" 
+                            viewBox="0 0 20 23" 
+                            fill="none" 
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <path d="M10.2963 12.6129C13.6296 12.4645 16.2963 9.68226 16.2963 6.30645C16.2963 2.81936 13.4815 0 10 0C6.51852 0 3.7037 2.81936 3.7037 6.30645C3.7037 9.68226 6.37037 12.4274 9.7037 12.6129C4.22222 12.7984 0 17.1758 0 23H1.48148C1.48148 17.8065 5.14815 14.0968 10 14.0968C14.8519 14.0968 18.5185 17.8065 18.5185 23H20C20 17.1758 15.7778 12.7984 10.2963 12.6129ZM5.18518 6.34355C5.18518 3.67258 7.33333 1.52097 10 1.52097C12.6667 1.52097 14.8148 3.67258 14.8148 6.34355C14.8148 9.01452 12.6667 11.1661 10 11.1661C7.33333 11.1661 5.18518 8.97742 5.18518 6.34355Z" fill="white"/>
                         </svg>
                     </div>
                     <div class="text-start">
@@ -424,6 +441,7 @@ const showPaymentMethodModal = ref(false)
 const showProductModal = ref(false)
 const selectedProduct = ref(null)
 const forceUpdate = ref(0)
+const avatarKey = ref(0)
 
 // ========== 3. COMPUTED ==========
 const selectedAddress = computed(() => userStore.selectedAddress)
@@ -436,6 +454,18 @@ const canConfirm = computed(() => {
   if (selectedDeliveryMethod.value.value === 'delivery' && !selectedAddress.value) return false
   if (!selectedPaymentMethod.value) return false
   return true
+})
+
+const avatarUrl = computed(() => {
+  // Força reatividade quando avatarKey mudar
+  const _ = avatarKey.value
+  
+  if (userStore.pathImage) {
+    // Adiciona timestamp para evitar cache
+    const timestamp = Date.now()
+    return `${userStore.pathImage}?t=${timestamp}`
+  }
+  return null
 })
 
 // ========== 4. FUNÇÕES AUXILIARES ==========
@@ -658,7 +688,7 @@ const openProductModal = (item) => {
   showProductModal.value = true
 }
 
-//  HANDLER DO IDENTIFY MODAL - ATUALIZADO COM EMAIL
+// HANDLER DO IDENTIFY MODAL - ATUALIZADO COM EMAIL
 const handleIdentify = async (data) => {
   console.log('📝 handleIdentify recebido:', data)
   
@@ -726,6 +756,13 @@ const handleConfirm = () => {
   
   console.log('Pedido confirmado:', orderData)
   toast.success('Pedido confirmado com sucesso!', { timeout: 4000 })
+}
+
+const handleImageError = (event) => {
+  console.error('❌ Erro ao carregar imagem:', event.target.src)
+  // Se der erro, limpa o pathImage e força reatividade
+  userStore.pathImage = null
+  avatarKey.value++
 }
 
 // ========== 6. WATCHERS FORTES ==========
@@ -800,6 +837,16 @@ const handleCustomAddressUpdate = () => {
 
 const handleUserDataUpdated = (event) => {
   console.log('📡 user-data-updated recebido:', event.detail)
+  
+  // Verifica se o evento contém avatar
+  if (event.detail && event.detail.avatar) {
+    console.log('🖼️ Avatar atualizado:', event.detail.avatar)
+    // Atualiza o pathImage no userStore
+    userStore.pathImage = event.detail.avatar
+    // Força recarregamento da imagem
+    avatarKey.value++
+  }
+  
   forceUpdate.value++
 }
 
@@ -815,6 +862,18 @@ const handleForceCartUpdate = (event) => {
 
 const handleUserLogin = (event) => {
   console.log('📡 user-login recebido:', event.detail)
+  forceUpdate.value++
+}
+
+const handleProfileUpdated = (event) => {
+  console.log('📡 profile-updated recebido:', event.detail)
+  
+  if (event.detail && event.detail.avatar) {
+    console.log('🖼️ Avatar atualizado via profile:', event.detail.avatar)
+    userStore.pathImage = event.detail.avatar
+    avatarKey.value++
+  }
+  
   forceUpdate.value++
 }
 
@@ -850,6 +909,7 @@ onMounted(() => {
   window.addEventListener('user-data-loaded', handleUserDataLoaded)
   window.addEventListener('force-cart-update', handleForceCartUpdate)
   window.addEventListener('user-login', handleUserLogin)
+  window.addEventListener('profile-updated', handleProfileUpdated)
 })
 
 onUnmounted(() => {
@@ -860,6 +920,7 @@ onUnmounted(() => {
   window.removeEventListener('user-data-loaded', handleUserDataLoaded)
   window.removeEventListener('force-cart-update', handleForceCartUpdate)
   window.removeEventListener('user-login', handleUserLogin)
+  window.removeEventListener('profile-updated', handleProfileUpdated)
 })
 </script>
 
