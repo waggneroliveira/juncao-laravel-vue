@@ -1,5 +1,5 @@
 <template>
-  <div class="mobile-bottom-menu d-md-none">
+  <div class="mobile-bottom-menu d-md-none" :class="{ visible: isVisible }">
     <div class="menu-container">
       <button 
         v-for="item in items"
@@ -37,7 +37,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useCartStore } from '@/stores/useCartStore'
 import { useUserStore } from '@/stores/useUserStore'
 import { useToast } from 'vue-toastification'
@@ -54,6 +54,7 @@ const active = ref('orders')
 const isOpeningCart = ref(false)
 const showProfileModal = ref(false)
 const showLoginModal = ref(false)
+const isVisible = ref(false)
 
 const items = [
   { key: 'home', icon: 'bi bi-house', label: 'Início' },
@@ -69,6 +70,12 @@ const cartCount = computed(() => {
     return total + (item.quantity || 1)
   }, 0)
 })
+
+// Função para verificar a rolagem
+const handleScroll = () => {
+  const scrollPosition = window.scrollY || document.documentElement.scrollTop
+  isVisible.value = scrollPosition > 140
+}
 
 // Função para rolar suavemente para o topo
 const scrollToTop = () => {
@@ -189,6 +196,16 @@ const handleLoginSuccess = (userData) => {
     showProfileModal.value = true
   }, 500)
 }
+
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll)
+  // Verificar a posição inicial
+  handleScroll()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+})
 </script>
 
 <style scoped>
@@ -213,6 +230,12 @@ const handleLoginSuccess = (userData) => {
   display: flex;
   justify-content: center;
   z-index: 999;
+  transform: translateY(calc(100% + 10px));
+  transition: transform 0.3s ease-in-out;
+}
+
+.mobile-bottom-menu.visible {
+  transform: translateY(0);
 }
 
 .menu-container {

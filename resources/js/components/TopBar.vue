@@ -1043,9 +1043,10 @@ const logout = () => {
       font-size: 0.75rem;
     }
     .image {
-        width: 140px;
-        height: 140px;
-        margin-top: -100px;
+        width: 130px;
+        height: 130px;
+        margin: 0 auto;
+        margin-top: -90px;
         border: 5px solid rgba(0, 0, 0, 0.10);
     }
     .logo {
