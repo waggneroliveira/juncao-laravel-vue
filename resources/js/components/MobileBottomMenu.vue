@@ -235,7 +235,7 @@ onUnmounted(() => {
 }
 
 .mobile-bottom-menu.visible {
-  transform: translateY(0);
+  transform: inherit;
 }
 
 .menu-container {

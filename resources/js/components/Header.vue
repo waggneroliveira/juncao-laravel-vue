@@ -19,7 +19,7 @@
                             <line x1="5" y1="17" x2="15" y2="17" stroke="white" stroke-width="2" stroke-linecap="round"/>
                         </svg>
                     </button>
-                    <i class="bi bi-search text-white fs-5"></i>
+                    <i class="bi bi-search text-white fs-5 d-md-none"></i>
                 </div>
                 <div class="d-md-none py-2 px-1 d-flex justify-content-end align-items-end gap-3">
                     <span 
@@ -35,15 +35,24 @@
                             {{ cartStore.totalItems }}
                         </span>
                     </span>
+                    <!-- Foto ou Avatar -->
                     <div class="icon-user rounded-5 d-flex justify-content-center align-items-center p-0 overflow-hidden">
-                        <svg 
-                            width="24" 
-                            height="28" 
-                            viewBox="0 0 20 23" 
-                            fill="none" 
-                            xmlns="http://www.w3.org/2000/svg"
+                        <img 
+                        v-if="avatarUrl"
+                        :src="avatarUrl"
+                        :alt="userStore.fullName"
+                        style="width: 100%; height: 100%; object-fit: cover;"
+                        @error="handleImageError"
                         >
-                            <path d="M10.2963 12.6129C13.6296 12.4645 16.2963 9.68226 16.2963 6.30645C16.2963 2.81936 13.4815 0 10 0C6.51852 0 3.7037 2.81936 3.7037 6.30645C3.7037 9.68226 6.37037 12.4274 9.7037 12.6129C4.22222 12.7984 0 17.1758 0 23H1.48148C1.48148 17.8065 5.14815 14.0968 10 14.0968C14.8519 14.0968 18.5185 17.8065 18.5185 23H20C20 17.1758 15.7778 12.7984 10.2963 12.6129ZM5.18518 6.34355C5.18518 3.67258 7.33333 1.52097 10 1.52097C12.6667 1.52097 14.8148 3.67258 14.8148 6.34355C14.8148 9.01452 12.6667 11.1661 10 11.1661C7.33333 11.1661 5.18518 8.97742 5.18518 6.34355Z" fill="white"/>
+                        <svg 
+                        v-else
+                        width="24" 
+                        height="28" 
+                        viewBox="0 0 20 23" 
+                        fill="none" 
+                        xmlns="http://www.w3.org/2000/svg"
+                        >
+                        <path d="M10.2963 12.6129C13.6296 12.4645 16.2963 9.68226 16.2963 6.30645C16.2963 2.81936 13.4815 0 10 0C6.51852 0 3.7037 2.81936 3.7037 6.30645C3.7037 9.68226 6.37037 12.4274 9.7037 12.6129C4.22222 12.7984 0 17.1758 0 23H1.48148C1.48148 17.8065 5.14815 14.0968 10 14.0968C14.8519 14.0968 18.5185 17.8065 18.5185 23H20C20 17.1758 15.7778 12.7984 10.2963 12.6129ZM5.18518 6.34355C5.18518 3.67258 7.33333 1.52097 10 1.52097C12.6667 1.52097 14.8148 3.67258 14.8148 6.34355C14.8148 9.01452 12.6667 11.1661 10 11.1661C7.33333 11.1661 5.18518 8.97742 5.18518 6.34355Z" fill="white"/>
                         </svg>
                     </div>
                 </div>
@@ -53,10 +62,87 @@
 </template>
 
 <script setup>
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useUserStore } from '@/stores/useUserStore'
 import { useCartStore } from '@/stores/useCartStore'
 
+// ========== STORES ==========
+const userStore = useUserStore()
 const cartStore = useCartStore()
 
+// ========== REFS ==========
+const avatarKey = ref(0)
+
+// ========== COMPUTED ==========
+const avatarUrl = computed(() => {
+  const _ = avatarKey.value
+  
+  if (userStore.pathImage) {
+    const timestamp = Date.now()
+    return `${userStore.pathImage}?t=${timestamp}`
+  }
+  return null
+})
+
+// Computed para quantidade de itens no carrinho (se precisar)
+const cartItemsCount = computed(() => {
+  return cartStore.totalItems || 0
+})
+
+// ========== HANDLERS ==========
+const handleImageError = (event) => {
+  console.error('❌ Erro ao carregar imagem:', event.target.src)
+  userStore.pathImage = null
+  avatarKey.value++
+}
+
+// ========== EVENT LISTENERS ==========
+const handleUserDataUpdated = (event) => {
+  console.log('📡 user-data-updated recebido:', event.detail)
+  
+  if (event.detail && event.detail.avatar) {
+    console.log('🖼️ Avatar atualizado:', event.detail.avatar)
+    userStore.pathImage = event.detail.avatar
+    avatarKey.value++
+  }
+}
+
+const handleProfileUpdated = (event) => {
+  console.log('📡 profile-updated recebido:', event.detail)
+  
+  if (event.detail && event.detail.avatar) {
+    console.log('🖼️ Avatar atualizado via profile:', event.detail.avatar)
+    userStore.pathImage = event.detail.avatar
+    avatarKey.value++
+  }
+}
+
+const handleForceCartUpdate = () => {
+  console.log('📡 force-cart-update recebido - Forçando atualização')
+  avatarKey.value++
+}
+
+// ========== LIFECYCLE ==========
+onMounted(() => {
+  console.log('🟢 Header mounted - Inicializando...')
+  
+  // Carregar dados do usuário do storage
+  if (userStore.loadUserFromStorage) {
+    userStore.loadUserFromStorage()
+  }
+  
+  // Registrar event listeners para atualização dinâmica
+  window.addEventListener('user-data-updated', handleUserDataUpdated)
+  window.addEventListener('profile-updated', handleProfileUpdated)
+  window.addEventListener('force-cart-update', handleForceCartUpdate)
+})
+
+onUnmounted(() => {
+  console.log('🔴 Header unmounted - Removendo listeners')
+  window.removeEventListener('user-data-updated', handleUserDataUpdated)
+  window.removeEventListener('profile-updated', handleProfileUpdated)
+  window.removeEventListener('force-cart-update', handleForceCartUpdate)
+})
 </script>
 
 <style scoped>
