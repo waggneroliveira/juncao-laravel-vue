@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             SettingEmailSeeder::class,
             ClientSeeder::class,
             CompanySeeder::class,
+            DeliveryRegionsSeeder::class,
         ]);
         
     }

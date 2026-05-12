@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ClientAddress extends Model
 {
+    protected $table = 'client_addresses';
+    
     protected $fillable = [
         'client_id',
         'nickname',
@@ -19,16 +22,33 @@ class ClientAddress extends Model
         'reference',
         'instructions',
         'primary',
-        'active'
+        'active',
+        'delivery_region_id'
     ];
-
+    
     protected $casts = [
         'primary' => 'boolean',
-        'active' => 'boolean'
+        'active' => 'boolean',
+        'delivery_region_id' => 'integer'
     ];
-
-    public function client()
+    
+    public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+    
+    public function deliveryRegion(): BelongsTo
+    {
+        return $this->belongsTo(DeliveryRegion::class);
+    }
+
+    public function getDeliveryFeeAttribute(): ?float
+    {
+        return $this->deliveryRegion?->delivery_fee;
+    }
+
+    public function isDeliveryAvailable(): bool
+    {
+        return $this->deliveryRegion !== null && $this->deliveryRegion->active;
     }
 }
