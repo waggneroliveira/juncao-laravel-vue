@@ -149,7 +149,7 @@ trait ProductTransformer
             'tags' => $product->tags,
             'specifications' => $product->specifications,
             
-            'path_image' => $product->path_image ? asset('build/admin/images/products/product-1.png') : null,
+            'path_image' => $product->path_image ? $product->path_image : asset('build/admin/images/products/product-1.png'),
             'images' => $product->images->map(function($image) {
                 return [
                     'id' => $image->id,
@@ -245,7 +245,7 @@ trait ProductTransformer
             'tags' => $product->tags,
             'specifications' => $product->specifications,
             
-            'path_image' => $product->path_image ? asset('build/admin/images/products/product-1.png') : null,
+            'path_image' => $product->path_image ? $product->path_image : asset('build/admin/images/products/product-1.png'),
             'images' => $product->images->map(function($image) {
                 return [
                     'id' => $image->id,

@@ -36,6 +36,7 @@ class ProductSeeder extends Seeder
                     'category' => 'Hamburguers',
                     'productType' => 'food',
                     'isCombo' => false,
+                    'path_image' => 'http://192.168.100.2:8000/build/admin/images/products/product-1.png',
 
                     'customization' => [
                         'toppings' => [
@@ -67,6 +68,7 @@ class ProductSeeder extends Seeder
                     'category' => 'Pizzas',
                     'productType' => 'food',
                     'isCombo' => false,
+                    'path_image' => 'http://192.168.100.2:8000/build/admin/images/products/product-2.jpg',
 
                     'customization' => [
                         'sizes' => [
@@ -102,6 +104,7 @@ class ProductSeeder extends Seeder
                     'category' => 'Combos',
                     'productType' => 'combo',
                     'isCombo' => true,
+                    'path_image' => 'http://192.168.100.2:8000/build/admin/images/products/product-3.jpg',
 
                     'comboItems' => [
                         [
@@ -158,6 +161,7 @@ class ProductSeeder extends Seeder
                     'category' => 'Combos',
                     'productType' => 'combo',
                     'isCombo' => true,
+                    'path_image' => 'http://192.168.100.2:8000/build/admin/images/products/product-4.jpg',
 
                     'comboItems' => [
                         [
@@ -221,6 +225,7 @@ class ProductSeeder extends Seeder
                     'category' => 'Combos',
                     'productType' => 'combo',
                     'isCombo' => true,
+                    'path_image' => 'http://192.168.100.2:8000/build/admin/images/products/product-5.jpg',
 
                     'comboItems' => [
                         [
@@ -273,6 +278,7 @@ class ProductSeeder extends Seeder
                     'category' => 'Açaí',
                     'productType' => 'dessert',
                     'isCombo' => false,
+                    'path_image' => 'http://192.168.100.2:8000/build/admin/images/products/product-1.png',
 
                     'customization' => [
                         'sizes' => [
@@ -304,6 +310,7 @@ class ProductSeeder extends Seeder
                     'category' => 'Bedidas',
                     'productType' => 'beverage',
                     'isCombo' => false,
+                    'path_image' => 'http://192.168.100.2:8000/build/admin/images/products/product-2.jpg',
 
                     'customization' => [
                         'sizes' => [
@@ -325,6 +332,7 @@ class ProductSeeder extends Seeder
                     'category' => 'Bedidas',
                     'productType' => 'beverage',
                     'isCombo' => false,
+                    'path_image' => 'http://192.168.100.2:8000/build/admin/images/products/product-3.jpg',
 
                     'stock' => ['quantity' => 200]
                 ],
@@ -341,6 +349,7 @@ class ProductSeeder extends Seeder
                     'category' => 'Sobremesas',
                     'productType' => 'dessert',
                     'isCombo' => false,
+                    'path_image' => 'http://192.168.100.2:8000/build/admin/images/products/product-4.jpg',
 
                     'customization' => [
                         'toppings' => [
@@ -362,7 +371,7 @@ class ProductSeeder extends Seeder
                     ['name' => $p['category'], 'active' => 1, 'sorting' => 0]
                 );
 
-                // Cria o produto
+                // Cria o produto COM o campo path_image
                 $product = Product::create([
                     'name' => $p['name'],
                     'slug' => Str::slug($p['name']),
@@ -373,16 +382,17 @@ class ProductSeeder extends Seeder
                     'category_id' => $category->id,
                     'product_type' => $p['productType'],
                     'is_combo' => $p['isCombo'],
+                    'path_image' => $p['path_image'] ?? null, // ← ADICIONADO AQUI
                     'active' => 1,
                     'featured' => $p['featured'] ?? false,
                     'highlights' => $p['highlights'] ?? false,
                     'sorting' => $p['sorting'] ?? 0
                 ]);
 
-                // Adiciona imagem padrão
+                // Adiciona imagem padrão (opcional, pode ser a mesma da product)
                 ProductImage::create([
                     'product_id' => $product->id,
-                    'url' => ''
+                    'url' => $p['path_image'] ?? ''
                 ]);
 
                 // Adiciona stock

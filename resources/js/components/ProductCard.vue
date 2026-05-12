@@ -69,25 +69,27 @@
   const cart = useCartStore()
 
     // 🔥 FUNÇÃO PARA PEGAR A IMAGEM PRINCIPAL
-  const getMainImage = () => {
-    // Prioridade 1: path_image (capa do produto)
-    if (props.product?.path_image) {
-      return props.product.path_image
-    }
-    
-    // Prioridade 2: primeira imagem do array images
-    if (props.product?.images && props.product.images.length > 0) {
-      return props.product.images[0].url || props.product.images[0]
-    }
-    
-    // Prioridade 3: campo image direto
-    if (props.product?.image) {
-      return props.product.image
-    }
-    
-    // Padrão: placeholder
-    return 'build/admin/images/products/product-1.png'
+const getMainImage = () => {
+  // Prioridade 1: path_image do produto
+  if (props.product?.path_image) {
+    return props.product.path_image
   }
+  
+  // Prioridade 2: primeira imagem do array images (se existir)
+  if (props.product?.images && props.product.images.length > 0) {
+    return props.product.images[0].url || props.product.images[0]
+  }
+  
+  // Prioridade 3: campo image direto
+  if (props.product?.image) {
+    return props.product.image
+  }
+  
+  // Default: Placeholder baseado no ID do produto para variedade
+  const productId = props.product?.id || 1
+  const imageNumber = ((productId - 1) % 5) + 1
+  return `/build/admin/images/products/product-${imageNumber}.png`
+}
 
   // 🔥 FUNÇÃO PARA TRATAR ERRO DE IMAGEM
   const handleImageError = (event) => {

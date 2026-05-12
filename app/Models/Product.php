@@ -27,6 +27,7 @@ class Product extends Model
         'featured',
         'highlights',
         'order',
+        'path_image',
         'tags',
         'specifications',
         'path_image',
