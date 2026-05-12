@@ -66,6 +66,8 @@ Route::get('/api/categories', [HomePageController::class, 'categories']);
 Route::get('/api/products/highlights', [HomePageController::class, 'highlights']);
 Route::get('/api/company', [HomePageController::class, 'company']);
 
+Route::get('api/delivery-regions', [HomePageController::class, 'getRegions'])->name('delivery.regions');
+
 // Rotas API para Pedidos e Cliente (autenticação necessária com guard client)
 Route::middleware('auth:client')->group(function () {
     
@@ -121,6 +123,7 @@ Route::middleware('auth:client')->group(function () {
     
     // Rotas de cupons
     Route::post('/api/coupons/validate', [\App\Http\Controllers\CouponController::class, 'validate']);
+
 });
     
 // Rota para buscar cliente pelo WhatsApp 

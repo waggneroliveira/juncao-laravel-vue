@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\DeliveryRegion;
 use App\Services\CategoryService;
 use App\Services\CompanyStatusService;
 use App\Services\ProductService;
@@ -53,5 +54,24 @@ class HomePageController extends Controller
         $company = $this->companyService->getPublicData();
 
         return response()->json($company);
+    }
+
+    public function getRegions (Request $request)
+    {
+        $regions = DeliveryRegion::where('active', true)
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'delivery_fee',
+                'estimated_time_min',
+                'estimated_time_max',
+                'minimum_order_value'
+            ]);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $regions
+        ]);
     }
 }
