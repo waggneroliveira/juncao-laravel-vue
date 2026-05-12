@@ -177,7 +177,7 @@
     
     return false
   }
-
+  console.log(props.product.path_image)
   // Prepara o produto para adicionar direto (sem personalizações)
   const prepareSimpleProduct = () => {
     return {
