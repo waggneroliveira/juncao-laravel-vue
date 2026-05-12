@@ -187,10 +187,11 @@
           </div>
 
           <!-- Indicador de loading -->
-          <div v-if="isLoading" class="loading-spinner position-absolute d-flex justify-content-center align-items-center w-100 h-100">
-            <div class="spinner-border" role="status">
+          <div v-if="isLoading" class="loading-spinner position-absolute d-flex flex-column justify-content-center align-items-center w-100 h-100">
+            <div class="spinner-border mb-2" role="status">
               <span class="visually-hidden">Carregando...</span>
             </div>
+            <p>Carregando perfil...</p>
           </div>
         </div>
       </div>
@@ -610,6 +611,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.spinner-border{
+  color: #FFC400;
+}
 .modal-overlay {
   background: rgba(0, 0, 0, 0.6);
   position: fixed;
@@ -617,7 +621,7 @@ onMounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 100;
+  z-index: 1050;
   backdrop-filter: blur(4px);
 }
 
