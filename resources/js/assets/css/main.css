@@ -102,3 +102,9 @@ p, .horous-day{
     font-size: clamp(1.125rem, 2vw, 2rem);
     color: var(--text-dark);
 }
+.modal-title{
+    font-size: clamp(1rem, 1.125vw, 1.125rem) !important;
+    margin: 0;
+    font-weight: 600;
+    color: #1f2937;
+}

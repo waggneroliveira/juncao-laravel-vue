@@ -32,7 +32,7 @@ export default defineConfig({
     strictPort: true,
     hmr: {
       // host: 'localhost',
-      host: '192.168.100.4',
+      host: '192.168.100.2',
     },
   },
   build: {

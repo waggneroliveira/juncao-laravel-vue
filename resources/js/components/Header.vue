@@ -29,14 +29,14 @@
                         data-bs-target="#cartCanvas"
                         aria-controls="cartCanvas"
                     >
-                        <i class="bi bi-bag text-main fs-5"></i>
+                        <i class="bi bi-cart3 text-main fs-5"></i>
 
                         <span v-if="cartStore.totalItems" class="cart position-absolute d-flex justify-content-center align-items-center p-0 start-100 translate-middle badge rounded-pill bg-danger">
                             {{ cartStore.totalItems }}
                         </span>
                     </span>
                     <!-- Foto ou Avatar -->
-                    <div class="icon-user rounded-5 d-flex justify-content-center align-items-center p-0 overflow-hidden">
+                    <div @click="openProfileModal" class="icon-user rounded-5 d-flex justify-content-center align-items-center p-0 overflow-hidden">
                         <img 
                         v-if="avatarUrl"
                         :src="avatarUrl"
@@ -59,12 +59,20 @@
             </div>
         </div>
     </div>
+
+    <ProfileModal v-model="showProfileModal"/>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '@/stores/useUserStore'
 import { useCartStore } from '@/stores/useCartStore'
+import ProfileModal from '@/components/Profile.vue'
+
+const showProfileModal = ref(false)
+const openProfileModal = () => {
+    showProfileModal.value = true
+}
 
 // ========== STORES ==========
 const userStore = useUserStore()
@@ -156,6 +164,7 @@ onUnmounted(() => {
         background: #E9ECEF;
         width: 38px; 
         height: 38px;
+        cursor:pointer;
     }
     .icon-user svg{
         width: 18px;

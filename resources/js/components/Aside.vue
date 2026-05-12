@@ -336,7 +336,7 @@ onUnmounted(() => {
     top: 0;
     left: 0;
     right: 0;
-    z-index: 1000;
+    z-index: 100;
     background: var(--bg-ouro);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     padding: 0 16px;

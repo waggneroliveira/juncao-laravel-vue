@@ -9,12 +9,6 @@
 </template>
 
 <style scoped>
-@media (max-width: 768px) {
-    .image{
-        margin-left: 0 !important;
-        width: 100% !important
-    }
-}
     .image{
         text-align: end;
         width: 90vw;
@@ -26,5 +20,16 @@
         height: 225px;
         object-fit: cover;
         aspect-ratio: 1 / 1.92;
+    }
+    @media (max-width: 768px) {
+        .image{
+            margin-left: 0 !important;
+            width: 100% !important
+        }
+    }
+    @media (max-width: 680px) {
+        .image img{
+            height: 160px;
+        }
     }
 </style>
