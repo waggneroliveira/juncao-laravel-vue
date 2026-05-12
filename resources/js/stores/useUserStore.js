@@ -77,26 +77,42 @@ export const useUserStore = defineStore('user', {
           this.fullName = client.name
           this.whatsapp = client.phone
           this.email = emailToUse  // 🔥 SALVAR O EMAIL
-          this.pathImage = client.path_image || null
+          this.pathImage = this.fixAvatarUrl(client.path_image) // 🔥 CORRIGIR URL DO AVATAR
           this.isLogged = true
           
           // 4. Carregar métodos salvos
           if (client.delivery_method) {
-            this.deliveryMethod = client.delivery_method
-            localStorage.setItem('selectedDeliveryMethod', JSON.stringify(client.delivery_method))
+            // Verificar se delivery_method é string ou objeto
+            if (typeof client.delivery_method === 'string') {
+              // Tentar parsear se for string JSON
+              try {
+                this.deliveryMethod = JSON.parse(client.delivery_method)
+              } catch {
+                // Se não for JSON, procurar no localStorage ou criar objeto padrão
+                const savedMethod = localStorage.getItem('selectedDeliveryMethod')
+                if (savedMethod) {
+                  this.deliveryMethod = JSON.parse(savedMethod)
+                } else {
+                  this.deliveryMethod = { value: client.delivery_method, label: this.getDeliveryMethodLabel(client.delivery_method) }
+                }
+              }
+            } else {
+              this.deliveryMethod = client.delivery_method
+            }
+            localStorage.setItem('selectedDeliveryMethod', JSON.stringify(this.deliveryMethod))
             console.log('📦 Método de entrega carregado:', this.deliveryMethod)
           }
           
           if (client.payment_method) {
             this.paymentMethod = client.payment_method
-            localStorage.setItem('selectedPaymentMethod', client.payment_method)
+            localStorage.setItem('selectedPaymentMethod', this.paymentMethod)
             console.log('💰 Método de pagamento carregado:', this.paymentMethod)
           }
           
-          this.saveToStorage()
+          // 5. Carregar endereços DO BACKEND
+          await this.loadAddressesFromBackend()
           
-          // 5. Carregar endereços
-          await this.loadAddresses()
+          this.saveToStorage()
           
           // 6. Disparar eventos
           this.dispatchEvents()
@@ -106,7 +122,8 @@ export const useUserStore = defineStore('user', {
             paymentMethod: this.paymentMethod,
             selectedAddress: this.selectedAddress,
             email: this.email,
-            hasAvatar: !!this.pathImage
+            hasAvatar: !!this.pathImage,
+            avatarUrl: this.pathImage
           })
           
           return true
@@ -128,29 +145,63 @@ export const useUserStore = defineStore('user', {
       }
     },
     
+    /**
+     * 🔥 CORRIGIR URL DO AVATAR
+     */
+    fixAvatarUrl(avatar) {
+      if (!avatar) return null
+      
+      // Se já é URL completa ou base64, retorna como está
+      if (avatar.startsWith('http') || avatar.startsWith('data:')) {
+        return avatar
+      }
+      
+      // Se já tem caminho (ex: storage/avatars/avatar.webp)
+      if (avatar.includes('/')) {
+        const baseUrl = window.location.origin
+        return avatar.startsWith('/') ? `${baseUrl}${avatar}` : `${baseUrl}/${avatar}`
+      }
+      
+      // Se é apenas o nome do arquivo (ex: avatar_5_1778499422.webp)
+      const baseUrl = window.location.origin
+      return `${baseUrl}/storage/avatars/${avatar}`
+    },
+    
+    /**
+     * 🔥 OBTER LABEL DO MÉTODO DE ENTREGA
+     */
+    getDeliveryMethodLabel(value) {
+      const labels = {
+        delivery: 'Entrega em domicílio',
+        pickup: 'Retirada na loja',
+        local: 'Consumo no local'
+      }
+      return labels[value] || value
+    },
+    
     syncWithProfile(profileData) {
       if (profileData) {
         this.fullName = profileData.nome || this.fullName
         this.whatsapp = profileData.telefone || this.whatsapp
         this.email = profileData.email || this.email
-        this.pathImage = profileData.avatar || this.pathImage // 👈 ADICIONADO: sincronizar avatar
+        this.pathImage = this.fixAvatarUrl(profileData.avatar) // 👈 CORRIGIR URL do avatar
         this.saveToStorage()
         this.dispatchEvents()
       }
     },
     
     /**
-     * 🔥 ATUALIZAR AVATAR (NOVO MÉTODO)
+     * 🔥 ATUALIZAR AVATAR
      */
     updateAvatar(avatarUrl) {
       console.log('🖼️ Atualizando avatar no store:', avatarUrl)
-      this.pathImage = avatarUrl
+      this.pathImage = this.fixAvatarUrl(avatarUrl)
       this.saveToStorage()
       
       // Disparar evento específico para o avatar
       window.dispatchEvent(new CustomEvent('user-data-updated', { 
         detail: { 
-          avatar: avatarUrl,
+          avatar: this.pathImage,
           timestamp: Date.now()
         }
       }))
@@ -162,50 +213,68 @@ export const useUserStore = defineStore('user', {
     },
     
     /**
-     * 🔥 CARREGAR ENDEREÇOS DO USUÁRIO (após autenticação)
+     * 🔥 CARREGAR ENDEREÇOS DO BACKEND (após autenticação)
      */
-    async loadAddresses() {
+    async loadAddressesFromBackend() {
       if (!this.id) {
         console.log('⚠️ Sem ID do usuário')
         return
       }
       
       try {
-        console.log('🏠 Carregando endereços...')
+        console.log('🏠 Carregando endereços do backend...')
         const response = await axios.get('/client/addresses')
         
         if (response.data.success && response.data.addresses?.length > 0) {
           const addresses = response.data.addresses
           console.log(`📦 ${addresses.length} endereço(s) encontrado(s)`)
           
-          // Tentar carregar o endereço selecionado
+          // Salvar no localStorage para uso futuro
+          localStorage.setItem('addresses', JSON.stringify(addresses))
+          localStorage.setItem('addressesUpdated', Date.now().toString())
+          
+          // Tentar carregar o endereço selecionado salvo
           const savedAddressId = localStorage.getItem('selectedAddressId')
+          const savedAddressStr = localStorage.getItem('selectedAddress')
           
           if (savedAddressId) {
             const selected = addresses.find(a => a.id == savedAddressId)
             if (selected) {
               this.selectedAddress = selected
-              console.log('🏠 Endereço selecionado:', selected.street)
+              console.log('🏠 Endereço selecionado (por ID):', selected.street)
             }
           }
           
-          // Se não tem selecionado, pegar o principal
+          // Se não encontrou pelo ID, tentar pelo objeto salvo
+          if (!this.selectedAddress && savedAddressStr) {
+            try {
+              const savedAddress = JSON.parse(savedAddressStr)
+              const selected = addresses.find(a => a.id == savedAddress.id)
+              if (selected) {
+                this.selectedAddress = selected
+                console.log('🏠 Endereço selecionado (por objeto):', selected.street)
+              }
+            } catch (e) {}
+          }
+          
+          // Se ainda não tem, pegar o principal
           if (!this.selectedAddress) {
             const primary = addresses.find(a => a.primary === true) || addresses[0]
             if (primary) {
               this.selectedAddress = primary
               localStorage.setItem('selectedAddressId', primary.id.toString())
               localStorage.setItem('selectedAddress', JSON.stringify(primary))
-              console.log('🏠 Endereço principal:', primary.street)
+              console.log('🏠 Endereço principal selecionado:', primary.street)
             }
           }
           
+          // Salvar no storage
           this.saveToStorage()
         } else {
-          console.log('⚠️ Nenhum endereço encontrado')
+          console.log('⚠️ Nenhum endereço encontrado no backend')
         }
       } catch (error) {
-        console.error('❌ Erro ao carregar endereços:', error)
+        console.error('❌ Erro ao carregar endereços do backend:', error)
       }
     },
     
@@ -219,7 +288,9 @@ export const useUserStore = defineStore('user', {
         selectedAddress: this.selectedAddress,
         isLogged: true,
         fullName: this.fullName,
-        avatar: this.pathImage // 👈 ADICIONADO: incluir avatar nos eventos
+        avatar: this.pathImage,
+        whatsapp: this.whatsapp,
+        email: this.email
       }
       
       window.dispatchEvent(new CustomEvent('user-data-updated', { detail: eventData }))
@@ -239,7 +310,7 @@ export const useUserStore = defineStore('user', {
       this.fullName = userData.fullName || ''
       this.whatsapp = userData.whatsapp || ''
       this.email = userData.email || ''
-      this.pathImage = userData.pathImage || null
+      this.pathImage = this.fixAvatarUrl(userData.pathImage) || null
       this.isLogged = true
       
       if (userData.selectedAddress) {
@@ -387,7 +458,9 @@ export const useUserStore = defineStore('user', {
       sessionStorage.clear()
       
       // Disparar eventos para atualizar o Cart
-      this.dispatchEvents()
+      window.dispatchEvent(new CustomEvent('user-data-updated', { 
+        detail: { isLogged: false, timestamp: Date.now() } 
+      }))
       
       // 🔥 DISPARAR EVENTO ESPECÍFICO DE LOGOUT
       window.dispatchEvent(new CustomEvent('user-logout', { 
@@ -408,7 +481,7 @@ export const useUserStore = defineStore('user', {
         fullName: this.fullName,
         whatsapp: this.whatsapp,
         email: this.email,
-        pathImage: this.pathImage, // 👈 GARANTIR QUE O AVATAR É SALVO
+        pathImage: this.pathImage,
         selectedAddress: this.selectedAddress,
         deliveryMethod: this.deliveryMethod,
         paymentMethod: this.paymentMethod,
@@ -431,7 +504,7 @@ export const useUserStore = defineStore('user', {
           this.fullName = data.fullName || ''
           this.whatsapp = data.whatsapp || ''
           this.email = data.email || ''
-          this.pathImage = data.pathImage || null // 👈 CARREGAR AVATAR
+          this.pathImage = this.fixAvatarUrl(data.pathImage) || null // 👈 CORRIGIR URL
           this.selectedAddress = data.selectedAddress || null
           this.deliveryMethod = data.deliveryMethod || null
           this.paymentMethod = data.paymentMethod || null
@@ -439,7 +512,9 @@ export const useUserStore = defineStore('user', {
           
           console.log('📦 Usuário carregado do storage', {
             hasAvatar: !!this.pathImage,
-            avatarUrl: this.pathImage
+            avatarUrl: this.pathImage,
+            deliveryMethod: this.deliveryMethod,
+            paymentMethod: this.paymentMethod
           })
           
           // Disparar evento com o avatar carregado
@@ -449,7 +524,9 @@ export const useUserStore = defineStore('user', {
                 avatar: this.pathImage,
                 fullName: this.fullName,
                 whatsapp: this.whatsapp,
-                email: this.email
+                email: this.email,
+                deliveryMethod: this.deliveryMethod,
+                paymentMethod: this.paymentMethod
               }
             }))
           }

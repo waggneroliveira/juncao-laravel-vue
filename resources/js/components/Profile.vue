@@ -248,6 +248,28 @@ const form = ref({
   avatar: null
 })
 
+/**
+ * 🔥 FUNÇÃO PARA CORRIGIR URL DO AVATAR
+ */
+const fixAvatarUrl = (avatar) => {
+  if (!avatar) return null
+  
+  // Se já é URL completa ou base64, retorna como está
+  if (avatar.startsWith('http') || avatar.startsWith('data:')) {
+    return avatar
+  }
+  
+  // Se já tem caminho (ex: storage/avatars/avatar.webp)
+  if (avatar.includes('/')) {
+    const baseUrl = window.location.origin
+    return avatar.startsWith('/') ? `${baseUrl}${avatar}` : `${baseUrl}/${avatar}`
+  }
+  
+  // Se é apenas o nome do arquivo (ex: avatar_5_1778499422.webp)
+  const baseUrl = window.location.origin
+  return `${baseUrl}/storage/avatars/${avatar}`
+}
+
 // Computed para URL do avatar
 const displayAvatarUrl = computed(() => {
   const avatar = profile.value.avatar
@@ -293,30 +315,6 @@ const loadProfile = async () => {
     if (response.data.success) {
       const data = response.data.profile
       
-      // Função para corrigir a URL do avatar
-      const fixAvatarUrl = (avatar) => {
-        if (!avatar) return null
-        
-        // Se já é URL completa ou base64, retorna como está
-        if (avatar.startsWith('http') || avatar.startsWith('data:')) {
-          return avatar
-        }
-        
-        // Se já tem caminho (ex: storage/avatars/avatar.webp)
-        if (avatar.includes('/')) {
-          const baseUrl = window.location.origin
-          return avatar.startsWith('/') ? `${baseUrl}${avatar}` : `${baseUrl}/${avatar}`
-        }
-        
-        // Se é apenas o nome do arquivo (ex: avatar_5_1778499422.webp)
-        const baseUrl = window.location.origin
-        // 🔥 AJUSTE ESTE CAMINHO DE ACORDO COM SEU PROJETO
-        return `${baseUrl}/storage/avatars/${avatar}`
-      }
-      
-      // Corrigir a URL do avatar
-      const correctedAvatar = fixAvatarUrl(data.avatar)
-      
       profile.value = {
         id: data.id,
         nome: data.nome,
@@ -324,7 +322,7 @@ const loadProfile = async () => {
         email: data.email,
         dataNascimento: data.data_nascimento || '',
         genero: data.genero || '',
-        avatar: correctedAvatar  // Usar URL corrigida
+        avatar: fixAvatarUrl(data.avatar)  // 🔥 USAR A FUNÇÃO CORRIGIDA
       }
       form.value = { ...profile.value }
       
@@ -333,7 +331,7 @@ const loadProfile = async () => {
         userStore.fullName = data.nome
         userStore.whatsapp = data.telefone
         userStore.email = data.email
-        userStore.pathImage = correctedAvatar  // Salvar URL corrigida
+        userStore.pathImage = fixAvatarUrl(data.avatar)  // 🔥 USAR A FUNÇÃO CORRIGIDA
         userStore.saveToStorage()
       }
     }
@@ -344,6 +342,7 @@ const loadProfile = async () => {
     isLoading.value = false
   }
 }
+
 
 // Salvar perfil no backend
 const saveProfileToBackend = async () => {
@@ -366,14 +365,14 @@ const saveProfileToBackend = async () => {
         email: data.email,
         dataNascimento: data.data_nascimento,
         genero: data.genero,
-        avatar: data.avatar  // Mantém a URL como vem do backend
+        avatar: fixAvatarUrl(data.avatar)  // 🔥 USAR A FUNÇÃO CORRIGIDA
       }
       
       // Sincronizar com userStore
       userStore.fullName = data.nome
       userStore.whatsapp = data.telefone
       userStore.email = data.email
-      userStore.pathImage = data.avatar  // Mantém a URL original
+      userStore.pathImage = fixAvatarUrl(data.avatar)  // 🔥 USAR A FUNÇÃO CORRIGIDA
       userStore.saveToStorage()
       
       // Disparar eventos
@@ -384,7 +383,7 @@ const saveProfileToBackend = async () => {
           fullName: data.nome,
           whatsapp: data.telefone,
           email: data.email,
-          avatar: data.avatar  // Inclui o avatar
+          avatar: fixAvatarUrl(data.avatar)  // 🔥 USAR A FUNÇÃO CORRIGIDA
         } 
       }))
       
@@ -423,22 +422,23 @@ const uploadAvatar = async (file) => {
       console.log('🖼️ Avatar URL do backend:', avatarUrl)
       
       // Salva a URL original (relativa) no componente
-      profile.value.avatar = avatarUrl
+      const fixedUrl = fixAvatarUrl(avatarUrl)  // 🔥 CORRIGIR URL
+      profile.value.avatar = fixedUrl
       if (view.value === 'edit') {
-        form.value.avatar = avatarUrl
+        form.value.avatar = fixedUrl
       }
       
-      // Atualizar store com a URL original (relativa)
-      userStore.pathImage = avatarUrl
+      // Atualizar store com a URL corrigida
+      userStore.pathImage = fixedUrl
       userStore.saveToStorage()
       
-      // Disparar eventos com a URL original
+      // Disparar eventos com a URL corrigida
       window.dispatchEvent(new CustomEvent('user-data-updated', { 
-        detail: { avatar: avatarUrl } 
+        detail: { avatar: fixedUrl } 
       }))
       
       window.dispatchEvent(new CustomEvent('profile-updated', { 
-        detail: { avatar: avatarUrl } 
+        detail: { avatar: fixedUrl } 
       }))
       
       toast.success('Foto atualizada com sucesso!')

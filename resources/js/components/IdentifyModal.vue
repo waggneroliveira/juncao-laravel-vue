@@ -430,27 +430,40 @@ const verifyCode = async () => {
       toast.success('Código verificado com sucesso!', { timeout: 3000 })
       
       if (response.data.isExistingUser) {
-        // 🔥 USUÁRIO EXISTENTE - APENAS EMITIR O EVENTO, NÃO FAZER LOGIN AQUI
+        // 🔥 USUÁRIO EXISTENTE - CHAMAR LOGIN NO USERSTORE DIRETAMENTE
         const clientData = response.data.client || {}
         
-        console.log('👤 Usuário existente detectado, emitindo para o Cart:', {
-          whatsapp: whatsapp.value,
-          fullName: fullName.value,
-          email: email.value
-        })
+        console.log('👤 Usuário existente detectado, fazendo login...')
         
-        // 🔥 EMITIR O EVENTO PARA O CART.VUE GERENCIAR O LOGIN
-        emit('submit', {
-          isExistingUser: true,
-          whatsapp: whatsapp.value,
-          fullName: fullName.value,
-          email: email.value,
-          deliveryMethod: clientData.delivery_method,
-          paymentMethod: clientData.payment_method,
-          selectedAddress: null
-        })
+        // 🔥 USAR O MÉTODO DO USERSTORE PARA LOGAR
+        const loginSuccess = await userStore.loginExistingUser(
+          whatsapp.value.replace(/\D/g, ''),
+          email.value
+        )
         
-        close()
+        if (loginSuccess) {
+          // 🔥 DISPARAR EVENTO PARA O CART SABER QUE O LOGIN FOI FEITO
+          emit('submit', {
+            isExistingUser: true,
+            whatsapp: whatsapp.value,
+            fullName: fullName.value,
+            email: email.value,
+            deliveryMethod: userStore.deliveryMethod,
+            paymentMethod: userStore.paymentMethod,
+            selectedAddress: userStore.selectedAddress
+          })
+          
+          // 🔥 FORÇAR ATUALIZAÇÃO DO CART
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('force-cart-update', { 
+              detail: { source: 'identify-login', timestamp: Date.now() } 
+            }))
+          }, 100)
+          
+          close()
+        } else {
+          toast.error('Erro ao fazer login. Tente novamente.')
+        }
         
       } else {
         // NOVO USUÁRIO - continuar cadastro

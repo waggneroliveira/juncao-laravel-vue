@@ -126,10 +126,10 @@
 
             <!-- Menu -->
             <ul class="dropdown-menu custom-dropdown mt-2">
-              <a class="dropdown-item" href="#" @click="showAddressModal = true">
+              <a class="dropdown-item" href="#" @click="openAddress">
                 Meus Endereços
               </a>
-              <a class="dropdown-item" href="#" @click="showProfileModal = true">
+              <a class="dropdown-item" href="#" @click="openProfile">
                 Meu Perfil
               </a>
               <a class="dropdown-item" href="#" @click="openOrderHistory">
@@ -254,7 +254,7 @@
       <div class="menu-links d-flex flex-column gap-2">
         <button 
           class="menu-link-btn"
-          @click.stop="openAddressModal"
+          @click.stop="openAddressMobile"
         >
           <i class="bi bi-geo-alt me-3"></i>
           <span>Meus Endereços</span>
@@ -262,7 +262,7 @@
 
         <button 
           class="menu-link-btn"
-          @click.stop="openProfileModal"
+          @click.stop="openProfileMobile"
         >
           <i class="bi bi-person-circle me-3"></i>
           <span>Meu Perfil</span>
@@ -661,18 +661,33 @@ const closeOffcanvas = () => {
   document.body.style.paddingRight = ''
 }
 
-const openAddressModal = () => {
+// ========== FUNÇÕES PARA MOBILE ==========
+const openAddressMobile = () => {
   closeOffcanvas()
 
   setTimeout(() => {
+    if (!userStore.isLogged) {
+      toast.warning('Faça login para ver seus endereços!', {
+        timeout: 3000
+      })
+      showModal.value = true
+      return
+    }
     showAddressModal.value = true
   }, 150)
 }
 
-const openProfileModal = () => {
+const openProfileMobile = () => {
   closeOffcanvas()
 
   setTimeout(() => {
+    if (!userStore.isLogged) {
+      toast.warning('Faça login para acessar seu perfil!', {
+        timeout: 3000
+      })
+      showModal.value = true
+      return
+    }
     showProfileModal.value = true
   }, 150)
 }
@@ -723,6 +738,52 @@ const openOrderHistoryMobile = () => {
   }, 150)
 }
 
+// ========== FUNÇÕES PARA DESKTOP ==========
+const openAddress = () => {
+  if (!userStore.isLogged) {
+    toast.warning('Faça login para ver seus endereços!', {
+      timeout: 3000
+    })
+    showModal.value = true
+    return
+  }
+  showAddressModal.value = true
+}
+
+const openProfile = () => {
+  if (!userStore.isLogged) {
+    toast.warning('Faça login para acessar seu perfil!', {
+      timeout: 3000
+    })
+    showModal.value = true
+    return
+  }
+  showProfileModal.value = true
+}
+
+const openOrderHistory = () => {
+  if (!userStore.isLogged) {
+    toast.warning('Faça login para ver seus pedidos!', {
+      timeout: 3000
+    })
+    showModal.value = true
+    return
+  }
+
+  if (!userStore.userId) {
+    toast.error('Erro ao carregar dados do usuário. Por favor, faça login novamente.', {
+      timeout: 4000
+    })
+
+    userStore.logout()
+    showModal.value = true
+
+    return
+  }
+
+  showOrderHistoryModal.value = true
+}
+
 const closeOffcanvasAndNavigate = (page) => {
   closeOffcanvas()
 
@@ -749,31 +810,6 @@ const handleProfileUpdate = (updatedProfile) => {
   toast.success('Perfil atualizado com sucesso!', {
     timeout: 3000
   })
-}
-
-const openOrderHistory = () => {
-  if (!userStore.isLogged) {
-    toast.warning('Faça login para ver seus pedidos!', {
-      timeout: 3000
-    })
-
-    showModal.value = true
-
-    return
-  }
-
-  if (!userStore.userId) {
-    toast.error('Erro ao carregar dados do usuário. Por favor, faça login novamente.', {
-      timeout: 4000
-    })
-
-    userStore.logout()
-    showModal.value = true
-
-    return
-  }
-
-  showOrderHistoryModal.value = true
 }
 
 const handleIdentify = ({ whatsapp: wpp, fullName: name }) => {
